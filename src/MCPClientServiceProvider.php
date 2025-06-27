@@ -2,9 +2,9 @@
 
 namespace Redberry\MCPClient;
 
+use Redberry\MCPClient\Commands\MCPClientCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use Redberry\MCPClient\Commands\MCPClientCommand;
 
 class MCPClientServiceProvider extends PackageServiceProvider
 {
