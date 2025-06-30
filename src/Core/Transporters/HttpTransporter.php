@@ -21,7 +21,7 @@ class HttpTransporter implements Transporter
         $payload = $this->preparePayload($action, $params);
 
         try {
-            $response = $this->client->post($action, [
+            $response = $this->client->request('POST', $action, [
                 'json' => $payload,
                 'timeout' => $this->config['timeout'] ?? 30,
             ]);
@@ -84,7 +84,7 @@ class HttpTransporter implements Transporter
         return $clientConfig;
     }
 
-    private function initilizeClient()
+    private function initializeClient()
     {
         $clientConfig = $this->getClientBaseConfig();
 
