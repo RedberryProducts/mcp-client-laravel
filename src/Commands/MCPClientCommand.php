@@ -17,8 +17,9 @@ class MCPClientCommand extends Command
         $server = $this->argument('server');
         $selectedServer = $config[$server] ?? null;
 
-        if (!$selectedServer) {
+        if (! $selectedServer) {
             $this->error("Server configuration for '{$server}' not found.");
+
             return self::FAILURE;
         }
 
@@ -29,6 +30,7 @@ class MCPClientCommand extends Command
         $this->info('Response from MCP server:');
         $this->line(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         $this->info('Command executed successfully.');
+
         return self::SUCCESS;
     }
 }

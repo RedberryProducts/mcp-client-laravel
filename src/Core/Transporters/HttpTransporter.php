@@ -16,7 +16,7 @@ class HttpTransporter implements Transporter
         $this->initilizeClient();
     }
 
-    public function request(string $action, array $params = null): array
+    public function request(string $action, ?array $params = null): array
     {
         $payload = $this->preparePayload($action, $params);
 
@@ -52,7 +52,7 @@ class HttpTransporter implements Transporter
         return (string) random_int(1, 1000000);
     }
 
-    private function preparePayload(string $action, array $params = null)
+    private function preparePayload(string $action, ?array $params = null)
     {
         $payload = [
             'jsonrpc' => '2.0',
@@ -73,7 +73,7 @@ class HttpTransporter implements Transporter
             'base_uri' => rtrim($baseUri, '/').'/',    // ensure trailing slash
             'headers' => [
                 'Accept' => 'application/json',
-                'Content-Type' => 'application/json'
+                'Content-Type' => 'application/json',
             ],
         ];
 

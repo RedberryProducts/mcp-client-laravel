@@ -16,7 +16,7 @@ return [
                 '@modelcontextprotocol/some-server',
             ],
             'timeout' => 30,
-            'root_path' => '../path/to/mcp-server'
+            'root_path' => '../path/to/mcp-server',
         ],
     ],
 

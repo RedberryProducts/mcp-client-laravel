@@ -1,9 +1,10 @@
 <?php
+
 declare(strict_types=1);
 
+use Redberry\MCPClient\Core\TransporterFactory;
 use Redberry\MCPClient\Core\Transporters\HttpTransporter;
 use Redberry\MCPClient\Core\Transporters\StdioTransporter;
-use Redberry\MCPClient\Core\TransporterFactory;
 use Redberry\MCPClient\Enums\Transporters as TransporterEnum;
 
 it('creates an HTTP transporter via factory', function () {

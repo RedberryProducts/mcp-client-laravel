@@ -1,18 +1,17 @@
 <?php
 
-
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\TransferException;
+use GuzzleHttp\Psr7\Response;
 use Redberry\MCPClient\Core\Exceptions\TransporterRequestException;
 use Redberry\MCPClient\Core\Transporters\HttpTransporter;
-use GuzzleHttp\Psr7\Response;
-use GuzzleHttp\Exception\TransferException;
 
 afterEach(function () {
     Mockery::close();
 });
 
 test('preparePayload builds correct payload', function () {
-    $transporter = new HttpTransporter();
+    $transporter = new HttpTransporter;
     $method = new ReflectionMethod(HttpTransporter::class, 'preparePayload');
     $method->setAccessible(true);
 
@@ -25,7 +24,7 @@ test('preparePayload builds correct payload', function () {
 });
 
 test('generateId returns numeric string within range', function () {
-    $transporter = new HttpTransporter();
+    $transporter = new HttpTransporter;
     $gen = new ReflectionMethod(HttpTransporter::class, 'generateId');
     $gen->setAccessible(true);
 
@@ -36,7 +35,7 @@ test('generateId returns numeric string within range', function () {
 });
 
 test('getClientBaseConfig has default values', function () {
-    $transporter = new HttpTransporter();
+    $transporter = new HttpTransporter;
     $method = new ReflectionMethod(HttpTransporter::class, 'getClientBaseConfig');
     $method->setAccessible(true);
 
@@ -63,7 +62,7 @@ test('getClientBaseConfig respects base_url and token', function () {
 });
 
 test('successful request returns result field', function () {
-    $transporter = new HttpTransporter();
+    $transporter = new HttpTransporter;
     $response = new Response(200, [], json_encode(['result' => ['foo' => 'bar']]));
 
     $mockClient = Mockery::mock(Client::class);
@@ -78,7 +77,7 @@ test('successful request returns result field', function () {
 });
 
 test('successful request returns full data when no result', function () {
-    $transporter = new HttpTransporter();
+    $transporter = new HttpTransporter;
     $response = new Response(200, [], json_encode(['foo' => 'bar']));
 
     $mockClient = Mockery::mock(Client::class);
@@ -93,7 +92,7 @@ test('successful request returns full data when no result', function () {
 });
 
 test('invalid JSON response throws TransporterRequestException', function () {
-    $transporter = new HttpTransporter();
+    $transporter = new HttpTransporter;
     $response = new Response(200, [], 'not-json');
 
     $mockClient = Mockery::mock(Client::class);
@@ -111,7 +110,7 @@ test('invalid JSON response throws TransporterRequestException', function () {
 });
 
 test('JSON-RPC error throws TransporterRequestException with code', function () {
-    $transporter = new HttpTransporter();
+    $transporter = new HttpTransporter;
     $error = ['error' => ['message' => 'Something went wrong', 'code' => 400]];
     $response = new Response(200, [], json_encode($error));
 
@@ -131,7 +130,7 @@ test('JSON-RPC error throws TransporterRequestException with code', function () 
 });
 
 test('Guzzle exception is wrapped in TransporterRequestException', function () {
-    $transporter = new HttpTransporter();
+    $transporter = new HttpTransporter;
 
     $mockClient = Mockery::mock(Client::class);
     $mockClient->shouldReceive('post')->once()->andThrow(new TransferException('Network failure', 502));

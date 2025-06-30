@@ -18,8 +18,8 @@ interface Transporter
      *
      * @param  string  $action  The JSON-RPC method (e.g., 'read_pr').
      * @param  array  $params  Parameters for the request.
-     *
      * @return array Decoded JSON-RPC response.
+     *
      * @throws \Exception On transport failure.
      */
     public function request(string $action, array $params = []): array;

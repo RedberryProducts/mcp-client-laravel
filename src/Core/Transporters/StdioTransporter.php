@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Redberry\MCPClient\Core\Transporters;
@@ -16,7 +17,6 @@ class StdioTransporter implements ITransporter
      *
      * @param  string  $action  The tool or resource name to call
      * @param  array  $params  Parameters for the request
-     *
      * @return array Decoded response
      */
     public function request(string $action, array $params = []): array
