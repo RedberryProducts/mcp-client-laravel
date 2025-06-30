@@ -13,7 +13,7 @@ class HttpTransporter implements Transporter
 
     public function __construct(private array $config = [])
     {
-        $this->initilizeClient();
+        $this->initializeClient();
     }
 
     public function request(string $action, ?array $params = null): array
