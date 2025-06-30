@@ -1,5 +1,5 @@
 {
-    "name": "redberryproducts/laravel-mcp-client",
+    "name": "redberry/laravel-mcp-client",
     "description": "Package that enables you access to any mcp server that you define in the config",
     "keywords": [
         "Redberry",

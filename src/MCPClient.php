@@ -2,4 +2,6 @@
 
 namespace Redberry\MCPClient;
 
-class MCPClient {}
+class MCPClient {
+
+}
