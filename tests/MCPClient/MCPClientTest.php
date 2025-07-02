@@ -62,7 +62,7 @@ describe('MCPClient', function () {
             ->andReturn($mockTransporter);
 
         $client = new MCPClient($mockFactory);
-        $connected = $client->connect('using_enum');
+        $connected = $client->connect('without_enum');
 
         expect($connected)->toBeInstanceOf(MCPClient::class);
     });
