@@ -17,8 +17,9 @@ class TransporterFactory
     /**
      * Create a transporter.
      *
-     * @param  string|Transporters  $type  'http' or 'stdio' (or custom key)
      * @param  array  $config  Transporter-specific config
+     *
+     * @return ITransporter
      */
     public static function make(
         array $config = []
