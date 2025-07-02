@@ -9,20 +9,17 @@ use Redberry\MCPClient\Core\Transporters\Transporter;
 class MCPClient implements IMCPClient
 {
     private string $serverName;
+
     private array $serverConfig;
 
     private Transporter $transporter;
 
-
     /**
      * Connects to a specified MCP server.
-     *
-     * @param  TransporterFactory  $factory
      */
     public function __construct(
-        private readonly TransporterFactory $factory = new TransporterFactory()
-    ) {
-    }
+        private readonly TransporterFactory $factory = new TransporterFactory
+    ) {}
 
     public function connect(string $serverName): IMCPClient
     {

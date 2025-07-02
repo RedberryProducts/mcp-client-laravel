@@ -2,7 +2,7 @@
 
 namespace Redberry\MCPClient;
 
-class Collection implements \IteratorAggregate, \Countable
+class Collection implements \Countable, \IteratorAggregate
 {
     private array $items;
 
@@ -15,7 +15,7 @@ class Collection implements \IteratorAggregate, \Countable
     {
         $keys = is_array($keys[0]) ? $keys[0] : $keys;
 
-        $this->items = array_filter($this->items, fn($item) => in_array($item['name'] ?? null, $keys));
+        $this->items = array_filter($this->items, fn ($item) => in_array($item['name'] ?? null, $keys));
 
         return $this;
     }
@@ -24,7 +24,7 @@ class Collection implements \IteratorAggregate, \Countable
     {
         $keys = is_array($keys[0]) ? $keys[0] : $keys;
 
-        $this->items = array_filter($this->items, fn($item) => !in_array($item['name'] ?? null, $keys));
+        $this->items = array_filter($this->items, fn ($item) => ! in_array($item['name'] ?? null, $keys));
 
         return $this;
     }
@@ -52,6 +52,7 @@ class Collection implements \IteratorAggregate, \Countable
     public function map(callable $callback): static
     {
         $this->items = array_map($callback, $this->items);
+
         return $this;
     }
 }

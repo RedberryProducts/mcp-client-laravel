@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Facades\Config;
 use Redberry\MCPClient\Core\TransporterFactory;
 use Redberry\MCPClient\Core\Transporters\HttpTransporter;
 use Redberry\MCPClient\Core\Transporters\StdioTransporter;
 use Redberry\MCPClient\Enums\Transporters as TransporterEnum;
-use Illuminate\Support\Facades\Config;
 
 beforeEach(function () {
     Config::set('mcp-client.servers', [
@@ -29,7 +29,6 @@ beforeEach(function () {
     ]);
 });
 describe('TransporterFactory', function () {
-
 
     it('creates an HTTP transporter via factory', function () {
         $transporter = TransporterFactory::make(config('mcp-client.servers.github'));

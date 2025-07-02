@@ -1,11 +1,11 @@
 <?php
 
+use Illuminate\Support\Facades\Config;
 use Redberry\MCPClient\Collection;
+use Redberry\MCPClient\Core\TransporterFactory;
+use Redberry\MCPClient\Core\Transporters\Transporter;
 use Redberry\MCPClient\Enums\Transporters;
 use Redberry\MCPClient\MCPClient;
-use Redberry\MCPClient\Core\Transporters\Transporter;
-use Redberry\MCPClient\Core\TransporterFactory;
-use Illuminate\Support\Facades\Config;
 
 beforeEach(function () {
     Config::set('mcp-client.servers', [
@@ -105,13 +105,13 @@ describe('MCPClient', function () {
     });
 
     test('tools throws exception when not connected', function () {
-        $client = new MCPClient();
+        $client = new MCPClient;
 
         $client->tools(); // should throw
     })->throws(RuntimeException::class, 'Server configuration is not set. Please connect to a server first.');
 
     test('resources throws exception when not connected', function () {
-        $client = new MCPClient();
+        $client = new MCPClient;
 
         $client->resources(); // should throw
     })->throws(RuntimeException::class, 'Server configuration is not set. Please connect to a server first.');
