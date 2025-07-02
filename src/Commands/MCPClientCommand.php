@@ -15,6 +15,9 @@ class MCPClientCommand extends Command
     {
         $tools = MCPClient::connect('github')->tools()->only(['add_issue_comment', 'update_pull_request']);
 
+        foreach ($tools as $tool) {
+            $this->line("Tool: $tool");
+        }
         return self::SUCCESS;
     }
 }
