@@ -66,7 +66,7 @@ test('successful request returns result field', function () {
     $response = new Response(200, [], json_encode(['result' => ['foo' => 'bar']]));
 
     $mockClient = Mockery::mock(Client::class);
-    $mockClient->shouldReceive('post')->once()->andReturn($response);
+    $mockClient->shouldReceive('request')->once()->andReturn($response);
 
     $ref = new ReflectionClass($transporter);
     $prop = $ref->getProperty('client');
@@ -81,7 +81,7 @@ test('successful request returns full data when no result', function () {
     $response = new Response(200, [], json_encode(['foo' => 'bar']));
 
     $mockClient = Mockery::mock(Client::class);
-    $mockClient->shouldReceive('post')->once()->andReturn($response);
+    $mockClient->shouldReceive('request')->once()->andReturn($response);
 
     $ref = new ReflectionClass($transporter);
     $prop = $ref->getProperty('client');
@@ -96,7 +96,7 @@ test('invalid JSON response throws TransporterRequestException', function () {
     $response = new Response(200, [], 'not-json');
 
     $mockClient = Mockery::mock(Client::class);
-    $mockClient->shouldReceive('post')->once()->andReturn($response);
+    $mockClient->shouldReceive('request')->once()->andReturn($response);
 
     $ref = new ReflectionClass($transporter);
     $prop = $ref->getProperty('client');
@@ -115,7 +115,7 @@ test('JSON-RPC error throws TransporterRequestException with code', function () 
     $response = new Response(200, [], json_encode($error));
 
     $mockClient = Mockery::mock(Client::class);
-    $mockClient->shouldReceive('post')->once()->andReturn($response);
+    $mockClient->shouldReceive('request')->once()->andReturn($response);
 
     $ref = new ReflectionClass($transporter);
     $prop = $ref->getProperty('client');
@@ -133,7 +133,7 @@ test('Guzzle exception is wrapped in TransporterRequestException', function () {
     $transporter = new HttpTransporter;
 
     $mockClient = Mockery::mock(Client::class);
-    $mockClient->shouldReceive('post')->once()->andThrow(new TransferException('Network failure', 502));
+    $mockClient->shouldReceive('request')->once()->andThrow(new TransferException('Network failure', 502));
 
     $ref = new ReflectionClass($transporter);
     $prop = $ref->getProperty('client');
