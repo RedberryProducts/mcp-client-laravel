@@ -18,8 +18,6 @@ class TransporterFactory
      * Create a transporter.
      *
      * @param  array  $config  Transporter-specific config
-     *
-     * @return ITransporter
      */
     public static function make(
         array $config = []

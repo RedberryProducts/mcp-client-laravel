@@ -12,16 +12,12 @@ class MCPClient implements IMCPClient
 
     private Transporter $transporter;
 
-
     /**
      * Connects to a specified MCP server.
-     *
-     * @param  TransporterFactory  $factory
      */
     public function __construct(
-        private readonly TransporterFactory $factory = new TransporterFactory()
-    ) {
-    }
+        private readonly TransporterFactory $factory = new TransporterFactory
+    ) {}
 
     public function connect(string $serverName): IMCPClient
     {
