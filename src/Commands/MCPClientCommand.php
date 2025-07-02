@@ -13,7 +13,8 @@ class MCPClientCommand extends Command
 
     public function handle(): int
     {
-        $tools = MCPClient::connect('github')->tools()->only(['add_issue_comment', 'update_pull_request']);
+        $server = $this->argument('server');
+        $tools = MCPClient::connect($server)->tools();
 
         foreach ($tools as $tool) {
             $this->line("Tool: $tool");
