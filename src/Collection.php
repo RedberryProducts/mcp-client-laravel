@@ -31,40 +31,38 @@ class Collection implements \Countable, \IteratorAggregate
         return $this->all();
     }
 
-    public function only(...$keys): static
+    public function only(...$keys): Collection
     {
         // Handle null or empty keys by returning an empty collection
         $keys = is_array($keys[0] ?? null) ? $keys[0] : $keys;
         if (empty($keys) || $keys === [null]) {
-            return new static([]);
+            return new Collection([]);
         }
 
         $filtered = array_filter(
             $this->items,
-            fn ($item) => in_array($item['name'] ?? null, $keys, true)
+            fn($item) => in_array($item['name'] ?? null, $keys, true)
         );
-
-        return new static($filtered);
+        return new Collection($filtered);
     }
 
-    public function except(...$keys): static
+    public function except(...$keys): Collection
     {
         // Handle null or empty keys by returning all items
         $keys = is_array($keys[0] ?? null) ? $keys[0] : $keys;
         if (empty($keys) || $keys === [null]) {
-            return new static($this->items);
+            return new Collection($this->items);
         }
 
         $filtered = array_filter(
             $this->items,
-            fn ($item) => ! in_array($item['name'] ?? null, $keys, true)
+            fn($item) => !in_array($item['name'] ?? null, $keys, true)
         );
-
-        return new static($filtered);
+        return new Collection($filtered);
     }
 
-    public function map(callable $callback): static
+    public function map(callable $callback): Collection
     {
-        return new static(array_map($callback, $this->items));
+        return new Collection(array_map($callback, $this->items));
     }
 }
