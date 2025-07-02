@@ -41,8 +41,9 @@ class Collection implements \Countable, \IteratorAggregate
 
         $filtered = array_filter(
             $this->items,
-            fn($item) => in_array($item['name'] ?? null, $keys, true)
+            fn ($item) => in_array($item['name'] ?? null, $keys, true)
         );
+
         return new static($filtered);
     }
 
@@ -56,8 +57,9 @@ class Collection implements \Countable, \IteratorAggregate
 
         $filtered = array_filter(
             $this->items,
-            fn($item) => !in_array($item['name'] ?? null, $keys, true)
+            fn ($item) => ! in_array($item['name'] ?? null, $keys, true)
         );
+
         return new static($filtered);
     }
 

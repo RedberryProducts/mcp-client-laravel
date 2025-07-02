@@ -137,13 +137,13 @@ test('map applies callback to each item and maintains chainability', function ()
 
 test('map on empty collection returns empty array', function () {
     $collection = new Collection([]);
-    $mapped = $collection->map(fn($item) => $item)->all();
+    $mapped = $collection->map(fn ($item) => $item)->all();
     expect($mapped)->toBe([]);
 });
 
 test('map with invalid callback throws TypeError', function () use ($sampleItems) {
     $collection = new Collection($sampleItems);
-    expect(fn() => $collection->map('invalid_callback')->all())
+    expect(fn () => $collection->map('invalid_callback')->all())
         ->toThrow(TypeError::class);
 });
 
@@ -176,7 +176,7 @@ test('items with missing name key are handled correctly in only and except', fun
 
 test('immutability of original collection after operations', function () use ($sampleItems) {
     $collection = new Collection($sampleItems);
-    $collection->only('alpha')->map(fn($item) => $item);
+    $collection->only('alpha')->map(fn ($item) => $item);
     expect($collection->all())->toBe(array_values($sampleItems)); // Original unchanged
 });
 
