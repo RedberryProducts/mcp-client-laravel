@@ -23,7 +23,6 @@ class MCPClientServiceProvider extends PackageServiceProvider
             ->hasMigration('create_laravel_mcp_client_table')
             ->hasCommand(MCPClientCommand::class);
 
-
     }
 
     public function packageBooted(): void
