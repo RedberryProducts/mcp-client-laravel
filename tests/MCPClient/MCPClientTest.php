@@ -45,7 +45,7 @@ describe('MCPClient', function () {
             ->with(config('mcp-client.servers.using_enum'))
             ->andReturn($mockTransporter);
 
-        $client = new MCPClient($mockFactory);
+        $client = new MCPClient(config('mcp-client.servers'), $mockFactory);
         $connected = $client->connect('using_enum');
 
         expect($connected)->toBeInstanceOf(MCPClient::class);
@@ -61,7 +61,7 @@ describe('MCPClient', function () {
             ->with(config('mcp-client.servers.without_enum'))
             ->andReturn($mockTransporter);
 
-        $client = new MCPClient($mockFactory);
+        $client = new MCPClient(config('mcp-client.servers'), $mockFactory);
         $connected = $client->connect('without_enum');
 
         expect($connected)->toBeInstanceOf(MCPClient::class);
@@ -78,7 +78,7 @@ describe('MCPClient', function () {
 
         $mockFactory->shouldReceive('make')->andReturn($mockTransporter);
 
-        $client = new MCPClient($mockFactory);
+        $client = new MCPClient(config('mcp-client.servers'), $mockFactory);
         $client->connect('using_enum');
         $tools = $client->tools();
 
@@ -96,7 +96,7 @@ describe('MCPClient', function () {
 
         $mockFactory->shouldReceive('make')->andReturn($mockTransporter);
 
-        $client = new MCPClient($mockFactory);
+        $client = new MCPClient(config('mcp-client.servers'), $mockFactory);
         $client->connect('using_enum');
         $resources = $client->resources();
 
@@ -105,13 +105,13 @@ describe('MCPClient', function () {
     });
 
     test('tools throws exception when not connected', function () {
-        $client = new MCPClient;
+        $client = new MCPClient(config('mcp-client.servers'));
 
         $client->tools(); // should throw
     })->throws(RuntimeException::class, 'Server configuration is not set. Please connect to a server first.');
 
     test('resources throws exception when not connected', function () {
-        $client = new MCPClient;
+        $client = new MCPClient(config('mcp-client.servers'));
 
         $client->resources(); // should throw
     })->throws(RuntimeException::class, 'Server configuration is not set. Please connect to a server first.');

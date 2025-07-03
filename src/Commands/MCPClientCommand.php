@@ -16,10 +16,6 @@ class MCPClientCommand extends Command
         $server = $this->argument('server');
         $tools = MCPClient::connect($server)->tools();
 
-        foreach ($tools as $tool) {
-            $this->line("Tool: $tool");
-        }
-
         return self::SUCCESS;
     }
 }

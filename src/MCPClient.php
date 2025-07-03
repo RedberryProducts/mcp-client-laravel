@@ -8,6 +8,8 @@ use Redberry\MCPClient\Core\Transporters\Transporter;
 
 class MCPClient implements IMCPClient
 {
+    private array $config;
+
     private array $serverConfig;
 
     private Transporter $transporter;
@@ -16,12 +18,15 @@ class MCPClient implements IMCPClient
      * Connects to a specified MCP server.
      */
     public function __construct(
+        array $config,
         private readonly TransporterFactory $factory = new TransporterFactory
-    ) {}
+    ) {
+        $this->config = $config;
+    }
 
     public function connect(string $serverName): IMCPClient
     {
-        $this->serverConfig = config('mcp-client.servers.'.$serverName);
+        $this->serverConfig = $this->config[$serverName] ?? null;
 
         $this->ensureConfigurationValidity();
 
