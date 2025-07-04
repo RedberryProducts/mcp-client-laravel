@@ -17,16 +17,12 @@ class TransporterFactory
     /**
      * Create a transporter.
      *
-     * @param  string|Transporters  $type  'http' or 'stdio' (or custom key)
      * @param  array  $config  Transporter-specific config
      */
     public static function make(
-        string|Transporters $type,
         array $config = []
     ): ITransporter {
-        if ($type instanceof Transporters) {
-            $type = $type->value;
-        }
+        $type = $config['type'] instanceof Transporters ? $config['type']->value : $config['type'];
 
         return match ($type) {
             'http' => new HttpTransporter($config),
