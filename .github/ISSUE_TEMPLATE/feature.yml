@@ -1,0 +1,80 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for the package
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to suggest a feature. Please provide as much detail as possible to help us understand your idea.
+        
+  - type: textarea
+    id: feature-summary
+    attributes:
+      label: Summary
+      description: What is the core idea of your feature?
+      placeholder: I’d like the package to support XYZ because...
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What problem does this feature solve? What is the pain point or limitation in the current functionality?
+      placeholder: Currently, I cannot do X easily, which causes Y.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution
+      description: How do you imagine this feature working? Feel free to provide examples or pseudocode.
+      placeholder: I imagine it working like this...
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you tried other approaches, workarounds, or plugins?
+      placeholder: I’ve tried using ABC, but it lacks XYZ...
+    validations:
+      required: false
+
+  - type: input
+    id: package-version
+    attributes:
+      label: Package Version
+      description: What version of the package are you currently using?
+      placeholder: 2.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: php-version
+    attributes:
+      label: PHP Version
+      description: What version of PHP are you using?
+      placeholder: 8.2.0
+    validations:
+      required: true
+
+  - type: input
+    id: laravel-version
+    attributes:
+      label: Laravel Version
+      description: What version of Laravel are you using?
+      placeholder: 9.0.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Use this field to share any other relevant context or ideas.
+    validations:
+      required: false
