@@ -58,7 +58,7 @@ class StdioTransporter implements Transporter
     private function createProcess(string $input): Process
     {
         $command = $this->config['command'] ?? null;
-        if (!$command) {
+        if (! $command) {
             throw new \InvalidArgumentException('STDIO command is not defined.');
         }
 

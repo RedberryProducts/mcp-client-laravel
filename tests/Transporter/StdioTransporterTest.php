@@ -2,14 +2,13 @@
 
 use Redberry\MCPClient\Core\Exceptions\TransporterRequestException;
 use Redberry\MCPClient\Core\Transporters\StdioTransporter;
-use Symfony\Component\Process\Process;
 
 afterEach(function () {
     Mockery::close();
 });
 
 test('preparePayload builds correct payload', function () {
-    $transporter = new StdioTransporter();
+    $transporter = new StdioTransporter;
     $method = new ReflectionMethod(StdioTransporter::class, 'preparePayload');
     $method->setAccessible(true);
 
@@ -22,7 +21,7 @@ test('preparePayload builds correct payload', function () {
 });
 
 test('generateId returns numeric string', function () {
-    $transporter = new StdioTransporter();
+    $transporter = new StdioTransporter;
     $method = new ReflectionMethod(StdioTransporter::class, 'generateId');
     $method->setAccessible(true);
 
