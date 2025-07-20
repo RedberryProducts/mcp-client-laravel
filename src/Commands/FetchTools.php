@@ -19,7 +19,7 @@ class FetchTools extends Command
         try {
             $tools = MCPClient::connect($server)->tools()->toArray();
         } catch (Throwable $e) {
-            $this->error('Error: ' . $e->getMessage());
+            $this->error('Error: '.$e->getMessage());
 
             return self::FAILURE;
         }

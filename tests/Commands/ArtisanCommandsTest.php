@@ -23,7 +23,7 @@ test('fetch-tools command lists tools', function () {
         ->andReturnSelf();
     MCPClient::shouldReceive('tools')
         ->once()
-        ->andReturn(new Collection([[ 'name' => 'tool1' ]]));
+        ->andReturn(new Collection([['name' => 'tool1']]));
 
     $exitCode = Artisan::call('mcp-client:fetch-tools', ['server' => 'github']);
 
@@ -38,7 +38,7 @@ test('fetch-resources command lists resources', function () {
         ->andReturnSelf();
     MCPClient::shouldReceive('resources')
         ->once()
-        ->andReturn(new Collection([[ 'id' => 1 ]]));
+        ->andReturn(new Collection([['id' => 1]]));
 
     $exitCode = Artisan::call('mcp-client:fetch-resources', ['server' => 'github']);
 
@@ -47,7 +47,7 @@ test('fetch-resources command lists resources', function () {
 });
 
 test('test-all command iterates over all servers', function () {
-    config()->set('mcp-client.servers', [ 'github' => [], 'local' => [] ]);
+    config()->set('mcp-client.servers', ['github' => [], 'local' => []]);
 
     MCPClient::shouldReceive('connect')->twice()->andReturnSelf();
 

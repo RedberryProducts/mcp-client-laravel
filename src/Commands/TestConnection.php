@@ -22,7 +22,7 @@ class TestConnection extends Command
 
             return self::SUCCESS;
         } catch (Throwable $e) {
-            $this->error('❌ Failed to connect: ' . $e->getMessage());
+            $this->error('❌ Failed to connect: '.$e->getMessage());
 
             return self::FAILURE;
         }

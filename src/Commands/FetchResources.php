@@ -19,7 +19,7 @@ class FetchResources extends Command
         try {
             $resources = MCPClient::connect($server)->resources()->toArray();
         } catch (Throwable $e) {
-            $this->error('Error: ' . $e->getMessage());
+            $this->error('Error: '.$e->getMessage());
 
             return self::FAILURE;
         }

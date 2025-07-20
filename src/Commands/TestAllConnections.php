@@ -22,7 +22,7 @@ class TestAllConnections extends Command
                 MCPClient::connect($server);
                 $this->info("✅ Successfully connected to [{$server}]");
             } catch (Throwable $e) {
-                $this->error("❌ Failed to connect to [{$server}]: " . $e->getMessage());
+                $this->error("❌ Failed to connect to [{$server}]: ".$e->getMessage());
             }
         }
 
