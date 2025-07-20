@@ -68,9 +68,11 @@ class StdioTransporter implements Transporter
         return new Process($command, $cwd, null, $input, $timeout);
     }
 
+    private const ID_GENERATION_MAX = 1000000;
+
     private function generateId(): string
     {
-        return (string) random_int(1, 1000000);
+        return (string) random_int(1, self::ID_GENERATION_MAX);
     }
 
     private function preparePayload(string $action, ?array $params = null): array
