@@ -4,29 +4,84 @@ declare(strict_types=1);
 
 namespace Redberry\MCPClient\Core\Transporters;
 
-use Redberry\MCPClient\Core\Transporters\Transporter as ITransporter;
+use Redberry\MCPClient\Core\Exceptions\TransporterRequestException;
+use Symfony\Component\Process\Exception\ProcessFailedException;
+use Symfony\Component\Process\Process;
 
 /**
- * Stdio Transporter for MCPClient.
- * This transporter uses standard input/output to communicate with the MCP server.
+ * Transporter which communicates with an MCP server over STDIO.
+ * The configured command is executed and the JSON-RPC payload is
+ * provided via STDIN. The output from STDOUT is returned as the
+ * decoded response.
  */
-class StdioTransporter implements ITransporter
+class StdioTransporter implements Transporter
 {
-    /**
-     * Send a request for a given action and parameters.
-     *
-     * @param  string  $action  The tool or resource name to call
-     * @param  array  $params  Parameters for the request
-     * @return array Decoded response
-     */
+    private array $config;
+
+    public function __construct(array $config = [])
+    {
+        $this->config = $config;
+    }
+
     public function request(string $action, array $params = []): array
     {
-        // Implementation of standard input/output logic goes here.
-        // This is a placeholder implementation.
+        $payload = $this->preparePayload($action, $params);
+        $process = $this->createProcess(json_encode($payload));
+
+        try {
+            $process->mustRun();
+        } catch (ProcessFailedException $e) {
+            throw new TransporterRequestException(
+                "STDIO process failed for {$action}: {$e->getMessage()}",
+                $e->getCode(),
+                $e
+            );
+        }
+
+        $output = trim($process->getOutput());
+        $data = json_decode($output, true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new TransporterRequestException('Invalid JSON response: '.json_last_error_msg());
+        }
+
+        if (isset($data['error'])) {
+            throw new TransporterRequestException(
+                'JSON-RPC error: '.$data['error']['message'],
+                $data['error']['code'] ?? 0
+            );
+        }
+
+        return $data['result'] ?? $data;
+    }
+
+    private function createProcess(string $input): Process
+    {
+        $command = $this->config['command'] ?? null;
+        if (! $command) {
+            throw new \InvalidArgumentException('STDIO command is not defined. Please provide a "command" key in the configuration array with the required command.');
+        }
+
+        $cwd = $this->config['root_path'] ?? null;
+        $timeout = $this->config['timeout'] ?? 60;
+
+        return new Process($command, $cwd, null, $input, $timeout);
+    }
+
+    private const ID_GENERATION_MAX = 1000000;
+
+    private function generateId(): string
+    {
+        return (string) random_int(1, self::ID_GENERATION_MAX);
+    }
+
+    private function preparePayload(string $action, ?array $params = null): array
+    {
         return [
-            'action' => $action,
+            'jsonrpc' => '2.0',
+            'method' => $action,
             'params' => $params,
-            'response' => 'This is a mock response from StdioTransporter',
+            'id' => $this->generateId(),
         ];
     }
 }
