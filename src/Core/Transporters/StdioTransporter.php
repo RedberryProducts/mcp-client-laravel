@@ -59,7 +59,7 @@ class StdioTransporter implements Transporter
     {
         $command = $this->config['command'] ?? null;
         if (! $command) {
-            throw new \InvalidArgumentException('STDIO command is not defined.');
+            throw new \InvalidArgumentException('STDIO command is not defined. Please provide a "command" key in the configuration array with the required command.');
         }
 
         $cwd = $this->config['root_path'] ?? null;
