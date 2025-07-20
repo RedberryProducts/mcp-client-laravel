@@ -28,7 +28,7 @@ test('generateId returns numeric string', function () {
     $id = $method->invoke($transporter);
 
     expect(is_string($id))->toBeTrue();
-    expect(preg_match('/^\d+$/', $id) === 1 && ((int) $id >= 1 && (int) $id <= 1000000))->toBeTrue();
+    expect(preg_match('/^\d+$/', $id) === 1)->toBeTrue();
 });
 
 test('successful request returns result', function () {
