@@ -5,11 +5,9 @@ namespace Redberry\MCPClient\Facades;
 use Illuminate\Support\Facades\Facade;
 
 /**
- * @see \Redberry\MCPClient\Contracts\MCPClient
- *
  * @method static \Redberry\MCPClient\Contracts\MCPClient connect(string $server)
- * @method static \Redberry\MCPClient\Contracts\MCPClient tools()
- * @method static \Redberry\MCPClient\Contracts\MCPClient resources()
+ *
+ * @see \Redberry\MCPClient\MCPClient
  */
 class MCPClient extends Facade
 {

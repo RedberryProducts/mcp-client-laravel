@@ -2,8 +2,10 @@
 
 namespace Redberry\MCPClient;
 
-use Redberry\MCPClient\Commands\MCPClientCommand;
-use Redberry\MCPClient\Core\TransporterFactory;
+use Redberry\MCPClient\Commands\FetchResources;
+use Redberry\MCPClient\Commands\FetchTools;
+use Redberry\MCPClient\Commands\TestAllConnections;
+use Redberry\MCPClient\Commands\TestConnection;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -20,17 +22,21 @@ class MCPClientServiceProvider extends PackageServiceProvider
             ->name('laravel-mcp-client')
             ->hasConfigFile()
             ->hasViews()
-            ->hasMigration('create_laravel_mcp_client_table')
-            ->hasCommand(MCPClientCommand::class);
+            ->hasMigration('create_laravel_mcp_client_table');
 
     }
 
     public function packageBooted(): void
     {
-        $this->app->bind(MCPClient::class, function ($app) {
-            $servers = $app['config']->get('mcp-client.servers', []);
-
-            return new MCPClient($servers, $app->make(TransporterFactory::class));
+        $this->app->singleton(MCPClient::class, function ($app) {
+            return new MCPClient(config('mcp-client.servers'));
         });
+
+        $this->commands([
+            FetchTools::class,
+            FetchResources::class,
+            TestConnection::class,
+            TestAllConnections::class,
+        ]);
     }
 }
