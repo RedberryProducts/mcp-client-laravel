@@ -11,9 +11,34 @@ class HttpTransporter implements Transporter
 {
     private GuzzleClient $client;
 
+    private string $sessionId;
+
+    /**
+     * @throws GuzzleException
+     */
     public function __construct(private array $config = [])
     {
         $this->initializeClient();
+        $this->setSessionId();
+    }
+
+    /**
+     * @throws GuzzleException
+     */
+    private function setSessionId(): void
+    {
+        $payload = $this->preparePayload('initialize');
+        $response = $this->client->request('POST', '', [
+            'json' => $payload,
+            'timeout' => $this->config['timeout'] ?? 30,
+        ]);
+        $sessionID = $response->getHeader('mcp-session-id');
+
+        if (!empty($sessionID)) {
+            $sessionID = $sessionID[0];
+        }
+
+        $this->sessionId = $sessionID;
     }
 
     public function request(string $action, ?array $params = null): array
@@ -24,6 +49,9 @@ class HttpTransporter implements Transporter
             $response = $this->client->request('POST', $action, [
                 'json' => $payload,
                 'timeout' => $this->config['timeout'] ?? 30,
+                'headers' => [
+                    'mcp-session-id' => $this->sessionId,
+                ],
             ]);
             $body = (string) $response->getBody();
             $data = json_decode($body, true);
