@@ -26,7 +26,7 @@ class TransporterFactory
 
         return match ($type) {
             'http' => new HttpTransporter($config),
-            'stdio' => new StdioTransporter,
+            'stdio' => new StdioTransporter($config),
             default => throw new \InvalidArgumentException("Unsupported transporter type: {$type}"),
         };
     }

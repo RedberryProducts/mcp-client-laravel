@@ -23,7 +23,7 @@ test('fetch-tools command lists tools', function () {
         ->andReturnSelf();
     MCPClient::shouldReceive('tools')
         ->once()
-        ->andReturn(new Collection([['name' => 'tool1']]));
+        ->andReturn(new Collection([['name' => 'tool1', 'description' => 'A sample tool']]));
 
     $exitCode = Artisan::call('mcp-client:fetch-tools', ['server' => 'github']);
 

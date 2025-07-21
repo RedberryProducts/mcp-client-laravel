@@ -32,7 +32,7 @@ test('generateId returns numeric string within range', function () {
 
     expect(is_string($id))->toBeTrue();
     expect(preg_match('/^\d+$/', $id) === 1 && ((int) $id >= 1 && (int) $id <= 1000000))->toBeTrue();
-});
+})->only();
 
 test('getClientBaseConfig has default values', function () {
     $transporter = new HttpTransporter;

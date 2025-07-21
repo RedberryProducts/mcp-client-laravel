@@ -29,13 +29,17 @@ class FetchTools extends Command
 
             return self::SUCCESS;
         }
+        $rows = array_map(function (array $tool) {
+            return [
+                'Name' => $tool['name'],
+                'Description' => $tool['description']
+            ];
+        }, $tools);
 
-        $first = reset($tools);
-        if (is_array($first)) {
-            $this->table(array_keys($first), $tools);
-        } else {
-            $this->line(json_encode($tools));
-        }
+        $this->table(
+            ['Name', 'Description'],
+            $rows
+        );
 
         return self::SUCCESS;
     }

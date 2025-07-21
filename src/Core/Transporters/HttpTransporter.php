@@ -11,9 +11,36 @@ class HttpTransporter implements Transporter
 {
     private GuzzleClient $client;
 
+    private string $sessionId;
+
     public function __construct(private array $config = [])
     {
         $this->initializeClient();
+        $this->setSessionId();
+    }
+
+    /**
+     * @throws GuzzleException
+     * @throws TransporterRequestException
+     */
+    private function setSessionId(): void
+    {
+        $payload = $this->preparePayload('initialize');
+        $response = $this->client->request('POST', '', [
+            'json' => $payload,
+            'timeout' => $this->config['timeout'] ?? 30,
+        ]);
+        $sessionID = $response->getHeader('mcp-session-id');
+
+        if (empty($sessionID)) {
+            throw new TransporterRequestException('Initialization failed, Session ID not found in response headers.');
+        }
+
+        if (is_array($sessionID) && count($sessionID) >= 1) {
+            $sessionID = $sessionID[0];
+        }
+
+        $this->sessionId = $sessionID;
     }
 
     public function request(string $action, ?array $params = null): array
@@ -24,6 +51,9 @@ class HttpTransporter implements Transporter
             $response = $this->client->request('POST', $action, [
                 'json' => $payload,
                 'timeout' => $this->config['timeout'] ?? 30,
+                'headers' => [
+                    'Mcp-Session-Id' => $this->sessionId,
+                ],
             ]);
             $body = (string) $response->getBody();
             $data = json_decode($body, true);
@@ -88,7 +118,6 @@ class HttpTransporter implements Transporter
     {
         $clientConfig = $this->getClientBaseConfig();
 
-        // finally, instantiate the client
         $this->client = new Client($clientConfig);
     }
 }

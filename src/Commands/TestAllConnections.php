@@ -19,7 +19,7 @@ class TestAllConnections extends Command
 
         foreach ($servers as $server) {
             try {
-                MCPClient::connect($server);
+                MCPClient::connect($server)->tools();
                 $this->info("✅ Successfully connected to [{$server}]");
             } catch (Throwable $e) {
                 $this->error("❌ Failed to connect to [{$server}]: ".$e->getMessage());

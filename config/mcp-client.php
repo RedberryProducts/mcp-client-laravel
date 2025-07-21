@@ -13,11 +13,10 @@ return [
             'command' => [
                 'npx',
                 '-y',
-                '@modelcontextprotocol/some-server',
+                '@modelcontextprotocol/server-github',
             ],
             'timeout' => 30,
-            'root_path' => '../path/to/mcp-server',
+            'root_path' => base_path(),
         ],
     ],
-
 ];

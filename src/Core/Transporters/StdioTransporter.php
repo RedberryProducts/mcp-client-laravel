@@ -16,6 +16,8 @@ use Symfony\Component\Process\Process;
  */
 class StdioTransporter implements Transporter
 {
+    private const ID_GENERATION_MAX = 1000000;
+
     private array $config;
 
     public function __construct(array $config = [])
@@ -38,6 +40,7 @@ class StdioTransporter implements Transporter
             );
         }
 
+
         $output = trim($process->getOutput());
         $data = json_decode($output, true);
 
@@ -58,6 +61,7 @@ class StdioTransporter implements Transporter
     private function createProcess(string $input): Process
     {
         $command = $this->config['command'] ?? null;
+
         if (! $command) {
             throw new \InvalidArgumentException('STDIO command is not defined. Please provide a "command" key in the configuration array with the required command.');
         }
@@ -68,7 +72,6 @@ class StdioTransporter implements Transporter
         return new Process($command, $cwd, null, $input, $timeout);
     }
 
-    private const ID_GENERATION_MAX = 1000000;
 
     private function generateId(): string
     {
