@@ -40,7 +40,6 @@ class StdioTransporter implements Transporter
             );
         }
 
-
         $output = trim($process->getOutput());
         $data = json_decode($output, true);
 
@@ -71,7 +70,6 @@ class StdioTransporter implements Transporter
 
         return new Process($command, $cwd, null, $input, $timeout);
     }
-
 
     private function generateId(): string
     {

@@ -32,7 +32,7 @@ class FetchTools extends Command
         $rows = array_map(function (array $tool) {
             return [
                 'Name' => $tool['name'],
-                'Description' => $tool['description']
+                'Description' => $tool['description'],
             ];
         }, $tools);
 
