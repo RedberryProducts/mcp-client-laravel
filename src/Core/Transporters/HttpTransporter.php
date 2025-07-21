@@ -34,7 +34,7 @@ class HttpTransporter implements Transporter
         ]);
         $sessionID = $response->getHeader('mcp-session-id');
 
-        if (!empty($sessionID)) {
+        if (! empty($sessionID)) {
             $sessionID = $sessionID[0];
         }
 
