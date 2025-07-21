@@ -19,30 +19,36 @@ class HttpTransporter implements Transporter
     public function __construct(private array $config = [])
     {
         $this->initializeClient();
-        $this->setSessionId();
     }
 
     /**
+     * Perform the “initialize” handshake and capture the MCP session ID.
+     * Call this *once* before you start sending other RPCs.
+     *
      * @throws GuzzleException
      */
-    private function setSessionId(): void
+    private function initializeSession(): void
     {
         $payload = $this->preparePayload('initialize');
         $response = $this->client->request('POST', '', [
             'json' => $payload,
             'timeout' => $this->config['timeout'] ?? 30,
         ]);
-        $sessionID = $response->getHeader('mcp-session-id');
 
-        if (! empty($sessionID)) {
-            $sessionID = $sessionID[0];
+        // Guzzle returns headers as arrays
+        $hdr = $response->getHeader('mcp-session-id');
+        if (!empty($hdr) && is_string($hdr[0])) {
+            $this->sessionId = $hdr[0];
         }
-
-        $this->sessionId = $sessionID;
     }
 
+    /**
+     * @throws TransporterRequestException
+     * @throws GuzzleException
+     */
     public function request(string $action, ?array $params = null): array
     {
+        $this->initializeSession();
         $payload = $this->preparePayload($action, $params);
 
         try {
@@ -112,6 +118,9 @@ class HttpTransporter implements Transporter
         return $clientConfig;
     }
 
+    /**
+     * @throws GuzzleException
+     */
     private function initializeClient()
     {
         $clientConfig = $this->getClientBaseConfig();
