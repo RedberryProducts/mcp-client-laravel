@@ -14,7 +14,7 @@ describe('HttpTransporter', function () {
     // Helper function to set up the transporter with a mocked client and session
     function createTransporterWithMockedSession($responseForInitialize = null)
     {
-        $transporter = new HttpTransporter();
+        $transporter = new HttpTransporter;
         $mockClient = Mockery::mock(Client::class);
 
         // Mock the initializeSession request
@@ -41,7 +41,7 @@ describe('HttpTransporter', function () {
     }
 
     test('preparePayload builds correct payload', function () {
-        $transporter = new HttpTransporter();
+        $transporter = new HttpTransporter;
         $method = new ReflectionMethod(HttpTransporter::class, 'preparePayload');
         $method->setAccessible(true);
 
@@ -54,7 +54,7 @@ describe('HttpTransporter', function () {
     });
 
     test('generateId returns numeric string within range', function () {
-        $transporter = new HttpTransporter();
+        $transporter = new HttpTransporter;
         $gen = new ReflectionMethod(HttpTransporter::class, 'generateId');
         $gen->setAccessible(true);
 
@@ -65,7 +65,7 @@ describe('HttpTransporter', function () {
     });
 
     test('getClientBaseConfig has default values', function () {
-        $transporter = new HttpTransporter();
+        $transporter = new HttpTransporter;
         $method = new ReflectionMethod(HttpTransporter::class, 'getClientBaseConfig');
         $method->setAccessible(true);
 
