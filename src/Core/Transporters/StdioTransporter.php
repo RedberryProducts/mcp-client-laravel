@@ -5,17 +5,20 @@ declare(strict_types=1);
 namespace Redberry\MCPClient\Core\Transporters;
 
 use _PHPStan_ac6dae9b0\Nette\Neon\Exception;
-use Symfony\Component\Process\Process;
-use Symfony\Component\Process\InputStream;
 use Redberry\MCPClient\Core\Exceptions\TransporterRequestException;
+use Symfony\Component\Process\InputStream;
+use Symfony\Component\Process\Process;
 
 final class StdioTransporter implements Transporter
 {
     private Process $process;
+
     private InputStream $inputStream;
+
     private int $requestId = 0;
 
     private const PROTOCOL_VERSION = '2024-11-05';
+
     private const DEFAULT_TIMEOUT = 30;
 
     /** @var list<string> */
@@ -60,7 +63,7 @@ final class StdioTransporter implements Transporter
             );
         }
 
-        if (!$this->process->isRunning()) {
+        if (! $this->process->isRunning()) {
             $this->handleStartupFailure();
         }
 
@@ -80,9 +83,9 @@ final class StdioTransporter implements Transporter
         ];
 
         $json = json_encode(
-                $payload,
-                JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
-            )."\n";
+            $payload,
+            JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+        )."\n";
 
         $this->process->clearOutput();
         $this->process->clearErrorOutput();
@@ -106,7 +109,7 @@ final class StdioTransporter implements Transporter
 
     private function validateConfig(): void
     {
-        if ($this->command === [] || !is_array($this->command)) {
+        if ($this->command === [] || ! is_array($this->command)) {
             throw new Exception(
                 'Configuration "command" must be a non-empty array.'
             );
@@ -115,7 +118,7 @@ final class StdioTransporter implements Transporter
 
     private function initializeProcess(): void
     {
-        $this->inputStream = new InputStream();
+        $this->inputStream = new InputStream;
 
         $process = Process::fromShellCommandline(
             $this->buildCommandLine(),

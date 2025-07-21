@@ -12,8 +12,8 @@ return [
             'type' => \Redberry\MCPClient\Enums\Transporters::STDIO,
             'command' => [
                 'npx',
-                "-y",
-                "@modelcontextprotocol/server-memory"
+                '-y',
+                '@modelcontextprotocol/server-memory',
             ],
             'timeout' => 30,
             'root_path' => base_path(),
