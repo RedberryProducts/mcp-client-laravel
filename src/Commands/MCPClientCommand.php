@@ -16,6 +16,12 @@ class MCPClientCommand extends Command
         $server = $this->argument('server');
         $tools = MCPClient::connect($server)->tools();
 
+
+        $this->info("Available tools for server '{$server}':");
+
+        $tools->map(function ($tool) {
+            $this->line(" - {$tool['name']}  -  ({$tool['description']})");
+        });
         return self::SUCCESS;
     }
 }

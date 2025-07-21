@@ -12,11 +12,11 @@ return [
             'type' => \Redberry\MCPClient\Enums\Transporters::STDIO,
             'command' => [
                 'npx',
-                '-y',
-                '@modelcontextprotocol/some-server',
+                "-y",
+                "@modelcontextprotocol/server-memory"
             ],
             'timeout' => 30,
-            'root_path' => '../path/to/mcp-server',
+            'root_path' => base_path(),
         ],
     ],
 
