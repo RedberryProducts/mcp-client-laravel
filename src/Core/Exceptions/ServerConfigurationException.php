@@ -2,6 +2,4 @@
 
 namespace Redberry\MCPClient\Core\Exceptions;
 
-class ServerConfigurationException extends \Exception
-{
-}
+class ServerConfigurationException extends \Exception {}

@@ -37,7 +37,7 @@ class HttpTransporter implements Transporter
 
         // Guzzle returns headers as arrays
         $hdr = $response->getHeader('mcp-session-id');
-        if (!empty($hdr)) {
+        if (! empty($hdr)) {
             $this->sessionId = $hdr[0];
         }
     }
