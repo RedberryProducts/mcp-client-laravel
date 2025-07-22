@@ -202,7 +202,7 @@ describe('HttpTransporter', function () {
         $mock = Mockery::mock(Client::class);
 
         $mock->shouldReceive('request')->once()
-            ->with('POST', '', Mockery::on(fn($o) => isset($o['json']['method']) && $o['json']['method'] === 'initialize'))
+            ->with('POST', '', Mockery::on(fn ($o) => isset($o['json']['method']) && $o['json']['method'] === 'initialize'))
             ->andReturn(new Response(200, ['mcp-session-id' => 'abc'], '{}'));
         $mock->shouldReceive('request')->once()
             ->with('POST', 'do', Mockery::on(function ($o) {
@@ -239,4 +239,3 @@ describe('HttpTransporter', function () {
             ->toThrow(Error::class);
     });
 });
-

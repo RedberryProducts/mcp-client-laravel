@@ -79,7 +79,7 @@ test('process failure throws TransporterRequestException', function () {
 });
 
 test('missing command throws InvalidArgumentException', function () {
-    $transporter = new StdioTransporter();
+    $transporter = new StdioTransporter;
 
     $this->expectException(InvalidArgumentException::class);
     $this->expectExceptionMessage('STDIO command is not defined');
@@ -103,4 +103,3 @@ test('createProcess respects root_path and timeout', function () {
     expect($process->getTimeout())->toBe(10.0);
     expect($process->getCommandLine())->toContain('php');
 });
-
