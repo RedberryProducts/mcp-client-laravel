@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Redberry\MCPClient\Core\Transporters;
 
-use _PHPStan_ac6dae9b0\Nette\Neon\Exception;
+use Redberry\MCPClient\Core\Exceptions\ServerConfigurationException;
 use Redberry\MCPClient\Core\Exceptions\TransporterRequestException;
 use Symfony\Component\Process\InputStream;
 use Symfony\Component\Process\Process;
@@ -63,7 +63,7 @@ final class StdioTransporter implements Transporter
             );
         }
 
-        if (! $this->process->isRunning()) {
+        if (!$this->process->isRunning()) {
             $this->handleStartupFailure();
         }
 
@@ -83,9 +83,9 @@ final class StdioTransporter implements Transporter
         ];
 
         $json = json_encode(
-            $payload,
-            JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
-        )."\n";
+                $payload,
+                JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+            )."\n";
 
         $this->process->clearOutput();
         $this->process->clearErrorOutput();
@@ -107,10 +107,15 @@ final class StdioTransporter implements Transporter
         unset($this->process, $this->inputStream);
     }
 
+    /**
+     * Validates the configuration for the StdioTransporter.
+     *
+     * @throws ServerConfigurationException
+     */
     private function validateConfig(): void
     {
-        if ($this->command === [] || ! is_array($this->command)) {
-            throw new Exception(
+        if ($this->command === []) {
+            throw new ServerConfigurationException(
                 'Configuration "command" must be a non-empty array.'
             );
         }
@@ -168,6 +173,11 @@ final class StdioTransporter implements Transporter
         }
     }
 
+    /**
+     *  Handles the failure of the process to start.
+     *
+     * @throws TransporterRequestException
+     */
     private function handleStartupFailure(): void
     {
         $exitCode = $this->process->getExitCode();
