@@ -196,4 +196,47 @@ describe('HttpTransporter', function () {
 
         $transporter->request('networkFailure', []);
     });
+
+    test('initializeSession stores header session id', function () {
+        $transporter = new HttpTransporter;
+        $mock = Mockery::mock(Client::class);
+
+        $mock->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn($o) => isset($o['json']['method']) && $o['json']['method'] === 'initialize'))
+            ->andReturn(new Response(200, ['mcp-session-id' => 'abc'], '{}'));
+        $mock->shouldReceive('request')->once()
+            ->with('POST', 'do', Mockery::on(function ($o) {
+                return isset($o['headers']['mcp-session-id']) && $o['headers']['mcp-session-id'] === 'abc';
+            }))
+            ->andReturn(new Response(200, [], json_encode(['result' => ['ok' => true]])));
+
+        $ref = new ReflectionClass($transporter);
+        $prop = $ref->getProperty('client');
+        $prop->setAccessible(true);
+        $prop->setValue($transporter, $mock);
+
+        expect($transporter->request('do'))->toEqual(['ok' => true]);
+
+        $sidProp = $ref->getProperty('sessionId');
+        $sidProp->setAccessible(true);
+        expect($sidProp->getValue($transporter))->toBe('abc');
+    });
+
+    test('missing session header causes property error', function () {
+        $transporter = new HttpTransporter;
+        $mock = Mockery::mock(Client::class);
+
+        $mock->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::type('array'))
+            ->andReturn(new Response(200, [], '{}'));
+
+        $ref = new ReflectionClass($transporter);
+        $prop = $ref->getProperty('client');
+        $prop->setAccessible(true);
+        $prop->setValue($transporter, $mock);
+
+        expect(fn () => $transporter->request('fail'))
+            ->toThrow(Error::class);
+    });
 });
+
