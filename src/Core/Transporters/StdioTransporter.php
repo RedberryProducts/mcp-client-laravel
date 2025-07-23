@@ -4,84 +4,254 @@ declare(strict_types=1);
 
 namespace Redberry\MCPClient\Core\Transporters;
 
+use Redberry\MCPClient\Core\Exceptions\ServerConfigurationException;
 use Redberry\MCPClient\Core\Exceptions\TransporterRequestException;
-use Symfony\Component\Process\Exception\ProcessFailedException;
+use Symfony\Component\Process\InputStream;
 use Symfony\Component\Process\Process;
 
-/**
- * Transporter which communicates with an MCP server over STDIO.
- * The configured command is executed and the JSON-RPC payload is
- * provided via STDIN. The output from STDOUT is returned as the
- * decoded response.
- */
-class StdioTransporter implements Transporter
+final class StdioTransporter implements Transporter
 {
-    private array $config;
+    private Process $process;
 
-    public function __construct(array $config = [])
+    private InputStream $inputStream;
+
+    private int $requestId = 0;
+
+    private const PROTOCOL_VERSION = '2024-11-05';
+
+    private const DEFAULT_TIMEOUT = 30;
+
+    /** @var list<string> */
+    private array $command;
+
+    /** @var array<string, string> */
+    private array $env;
+
+    private ?string $cwd;
+
+    public function __construct(array $config)
     {
-        $this->config = $config;
+        $this->command = $config['command'] ?? [];
+        $this->env = $config['env'] ?? [];
+        $this->cwd = $config['cwd'] ?? null;
+
+        $this->validateConfig();
     }
 
-    public function request(string $action, array $params = []): array
+    public function __destruct()
     {
-        $payload = $this->preparePayload($action, $params);
-        $process = $this->createProcess(json_encode($payload));
+        $this->close();
+    }
+
+    public function start(): void
+    {
+        if (isset($this->process) && $this->process->isRunning()) {
+            return;
+        }
+
+        $this->initializeProcess();
 
         try {
-            $process->mustRun();
-        } catch (ProcessFailedException $e) {
+            $this->process->start();
+            usleep(200_000);
+        } catch (\Throwable $e) {
+            $this->cleanup();
             throw new TransporterRequestException(
-                "STDIO process failed for {$action}: {$e->getMessage()}",
-                $e->getCode(),
+                'Unable to start process: '.$e->getMessage(),
+                0,
                 $e
             );
         }
 
-        $output = trim($process->getOutput());
-        $data = json_decode($output, true);
-
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new TransporterRequestException('Invalid JSON response: '.json_last_error_msg());
+        if (! $this->process->isRunning()) {
+            $this->handleStartupFailure();
         }
 
-        if (isset($data['error'])) {
-            throw new TransporterRequestException(
-                'JSON-RPC error: '.$data['error']['message'],
-                $data['error']['code'] ?? 0
+        $this->sendInitializeRequests();
+    }
+
+    public function request(string $action, array $params = []): array
+    {
+        $this->start();
+
+        $id = (string) ++$this->requestId;
+        $payload = [
+            'jsonrpc' => '2.0',
+            'id' => $id,
+            'method' => $action,
+            'params' => $params ?: (object) [],
+        ];
+
+        $json = json_encode(
+            $payload,
+            JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+        )."\n";
+
+        $this->process->clearOutput();
+        $this->process->clearErrorOutput();
+        $this->inputStream->write($json);
+
+        return $this->waitForResponse($id);
+    }
+
+    public function close(): void
+    {
+        if (isset($this->inputStream)) {
+            $this->inputStream->close();
+        }
+
+        if (isset($this->process) && $this->process->isRunning()) {
+            $this->process->stop();
+        }
+
+        unset($this->process, $this->inputStream);
+    }
+
+    /**
+     * Validates the configuration for the StdioTransporter.
+     *
+     * @throws ServerConfigurationException
+     */
+    private function validateConfig(): void
+    {
+        if ($this->command === []) {
+            throw new ServerConfigurationException(
+                'Configuration "command" must be a non-empty array.'
             );
         }
-
-        return $data['result'] ?? $data;
     }
 
-    private function createProcess(string $input): Process
+    private function initializeProcess(): void
     {
-        $command = $this->config['command'] ?? null;
-        if (! $command) {
-            throw new \InvalidArgumentException('STDIO command is not defined. Please provide a "command" key in the configuration array with the required command.');
+        $this->inputStream = new InputStream;
+
+        $process = Process::fromShellCommandline(
+            $this->buildCommandLine(),
+            $this->cwd,
+            $this->env,
+            $this->inputStream,
+            $this->env['timeout'] ?? self::DEFAULT_TIMEOUT
+        );
+
+        $process->setTty(false);
+        $process->setPty(false);
+
+        $this->process = $process;
+    }
+
+    private function buildCommandLine(): string
+    {
+        return implode(' ', array_map('escapeshellarg', $this->command));
+    }
+
+    private function sendInitializeRequests(): void
+    {
+        $initPayloads = [
+            [
+                'jsonrpc' => '2.0',
+                'id' => 'init',
+                'method' => 'initialize',
+                'params' => [
+                    'protocolVersion' => self::PROTOCOL_VERSION,
+                    'capabilities' => (object) [],
+                ],
+            ],
+            [
+                'jsonrpc' => '2.0',
+                'method' => 'initialized',
+                'params' => (object) [],
+            ],
+        ];
+
+        foreach ($initPayloads as $payload) {
+            $this->inputStream->write(
+                json_encode(
+                    $payload,
+                    JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+                )."\n"
+            );
+        }
+    }
+
+    /**
+     *  Handles the failure of the process to start.
+     *
+     * @throws TransporterRequestException
+     */
+    private function handleStartupFailure(): void
+    {
+        $exitCode = $this->process->getExitCode();
+        $errorOutput = $this->process->getErrorOutput();
+        $output = $this->process->getOutput();
+
+        $this->cleanup();
+
+        throw new TransporterRequestException(
+            sprintf(
+                'Process failed to start (exit code: %s). Error: %s; Output: %s',
+                $exitCode,
+                $errorOutput,
+                $output
+            )
+        );
+    }
+
+    /**
+     * @throws TransporterRequestException
+     */
+    private function waitForResponse(string $id): array
+    {
+        $start = microtime(true);
+        $timeout = $this->env['timeout'] ?? self::DEFAULT_TIMEOUT;
+        $buffer = '';
+
+        while ((microtime(true) - $start) < $timeout) {
+            $buffer .= $this->process->getIncrementalOutput();
+
+            if (str_contains($buffer, $id)) {
+                $lines = array_filter(explode("\n", trim($buffer)));
+
+                foreach ($lines as $line) {
+                    try {
+                        $data = json_decode(
+                            $line,
+                            true,
+                            512,
+                            JSON_THROW_ON_ERROR
+                        );
+                    } catch (\JsonException) {
+                        continue;
+                    }
+
+                    if (($data['id'] ?? null) === $id) {
+                        if (isset($data['error'])) {
+                            $message = $data['error']['message'] ?? 'Unknown JSON-RPC error';
+                            throw new TransporterRequestException('JSON-RPC error: '.$message);
+                        }
+
+                        return $data['result'] ?? [];
+                    }
+                }
+            }
+
+            usleep(50_000);
         }
 
-        $cwd = $this->config['root_path'] ?? null;
-        $timeout = $this->config['timeout'] ?? 60;
-
-        return new Process($command, $cwd, null, $input, $timeout);
+        throw new TransporterRequestException(
+            sprintf(
+                'Timeout after %d seconds waiting for response with id "%s".',
+                $timeout,
+                $id
+            )
+        );
     }
 
-    private const ID_GENERATION_MAX = 1000000;
-
-    private function generateId(): string
+    private function cleanup(): void
     {
-        return (string) random_int(1, self::ID_GENERATION_MAX);
-    }
+        if (isset($this->process) && $this->process->isRunning()) {
+            $this->process->stop();
+        }
 
-    private function preparePayload(string $action, ?array $params = null): array
-    {
-        return [
-            'jsonrpc' => '2.0',
-            'method' => $action,
-            'params' => $params,
-            'id' => $this->generateId(),
-        ];
+        unset($this->process, $this->inputStream);
     }
 }
