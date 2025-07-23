@@ -50,7 +50,6 @@ class MCPClient implements IMCPClient
         return new Collection($tools);
     }
 
-
     public function callTool(string $toolName, mixed $params = []): mixed
     {
         $requestParams = [
