@@ -1,12 +1,10 @@
 <?php
 
+use Redberry\MCPClient\Core\Exceptions\ServerConfigurationException;
+use Redberry\MCPClient\Core\Exceptions\TransporterRequestException;
+use Redberry\MCPClient\Core\Transporters\StdioTransporter;
 use Symfony\Component\Process\InputStream;
 use Symfony\Component\Process\Process;
-use Redberry\MCPClient\Core\Transporters\StdioTransporter;
-use Redberry\MCPClient\Core\Exceptions\{
-    ServerConfigurationException,
-    TransporterRequestException
-};
 
 beforeEach(function () {
     Mockery::getConfiguration()->allowMockingNonExistentMethods(true);
@@ -75,7 +73,6 @@ describe('StdioTransporter', function () {
 
         $mock->request('foo', []);
     });
-
 
     it('throws TransporterRequestException on timeout', function () {
         $mock = Mockery::mock(StdioTransporter::class)->makePartial();
@@ -222,6 +219,7 @@ describe('StdioTransporter', function () {
             ->twice()
             ->withArgs(function ($arg) {
                 $decoded = json_decode(trim($arg), true);
+
                 return isset($decoded['jsonrpc']) && isset($decoded['method']);
             });
 
@@ -372,6 +370,5 @@ describe('StdioTransporter', function () {
 
         expect(true)->toBeTrue();
     });
-
 
 });
