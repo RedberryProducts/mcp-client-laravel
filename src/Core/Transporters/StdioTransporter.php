@@ -9,7 +9,7 @@ use Redberry\MCPClient\Core\Exceptions\TransporterRequestException;
 use Symfony\Component\Process\InputStream;
 use Symfony\Component\Process\Process;
 
-final class StdioTransporter implements Transporter
+class StdioTransporter implements Transporter
 {
     private Process $process;
 
@@ -43,7 +43,7 @@ final class StdioTransporter implements Transporter
         $this->close();
     }
 
-    public function start(): void
+    protected function start(): void
     {
         if (isset($this->process) && $this->process->isRunning()) {
             return;
@@ -94,7 +94,7 @@ final class StdioTransporter implements Transporter
         return $this->waitForResponse($id);
     }
 
-    public function close(): void
+    protected function close(): void
     {
         if (isset($this->inputStream)) {
             $this->inputStream->close();
@@ -121,7 +121,7 @@ final class StdioTransporter implements Transporter
         }
     }
 
-    private function initializeProcess(): void
+    protected function initializeProcess(): void
     {
         $this->inputStream = new InputStream;
 
@@ -144,7 +144,7 @@ final class StdioTransporter implements Transporter
         return implode(' ', array_map('escapeshellarg', $this->command));
     }
 
-    private function sendInitializeRequests(): void
+    protected function sendInitializeRequests(): void
     {
         $initPayloads = [
             [
@@ -199,7 +199,7 @@ final class StdioTransporter implements Transporter
     /**
      * @throws TransporterRequestException
      */
-    private function waitForResponse(string $id): array
+    protected function waitForResponse(string $id): array
     {
         $start = microtime(true);
         $timeout = $this->env['timeout'] ?? self::DEFAULT_TIMEOUT;
@@ -246,7 +246,7 @@ final class StdioTransporter implements Transporter
         );
     }
 
-    private function cleanup(): void
+    protected function cleanup(): void
     {
         if (isset($this->process) && $this->process->isRunning()) {
             $this->process->stop();
