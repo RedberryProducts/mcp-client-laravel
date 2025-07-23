@@ -16,7 +16,7 @@ return [
                 '@modelcontextprotocol/server-memory',
             ],
             'timeout' => 30,
-            'root_path' => base_path(),
+            'cwd' => base_path(),
         ],
     ],
 
