@@ -50,6 +50,17 @@ class MCPClient implements IMCPClient
         return new Collection($tools);
     }
 
+
+    public function callTool(string $toolName, mixed $params = []): mixed
+    {
+        $requestParams = [
+            'name' => $toolName,
+            'arguments' => (object) $params,
+        ];
+
+        return $this->transporter->request('tools/call', $requestParams);
+    }
+
     /**
      * Fetches resources from the connected MCP server.
      *
