@@ -25,7 +25,7 @@ composer require redberry/laravel-mcp-client
 After installation, publish the configuration file:
 
 ```bash
-php artisan vendor:publish --tag="laravel-mcp-client-config"
+php artisan vendor:publish --tag="mcp-client-config"
 ```
 
 This will create a `config/mcp-client.php` file in your application.
