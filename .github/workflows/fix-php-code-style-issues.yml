@@ -1,4 +1,4 @@
-name: Fix PHP code style issues
+name: Check PHP code style issues
 
 on:
   push:
@@ -19,10 +19,16 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
 
-      - name: Fix PHP code style issues
-        uses: aglipanci/laravel-pint-action@2.5
-
-      - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@v6
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
         with:
-          commit_message: Fix styling
+          php-version: '8.3'
+
+      - name: Install Dependencies
+        run: |
+          composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+          npm install
+
+      - name: Run Laravel Pint (check mode)
+        run: |
+          ./vendor/bin/pint --test
