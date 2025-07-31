@@ -65,7 +65,7 @@ class StdioTransporter implements Transporter
             );
         }
 
-        if (!$this->process->isRunning()) {
+        if (! $this->process->isRunning()) {
             $this->handleStartupFailure();
         }
 
@@ -85,9 +85,9 @@ class StdioTransporter implements Transporter
         ];
 
         $json = json_encode(
-                $payload,
-                JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
-            )."\n";
+            $payload,
+            JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+        )."\n";
 
         $this->process->clearOutput();
         $this->process->clearErrorOutput();
