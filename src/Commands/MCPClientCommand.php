@@ -3,7 +3,6 @@
 namespace Redberry\MCPClient\Commands;
 
 use Illuminate\Console\Command;
-use Redberry\MCPClient\Facades\MCPClient;
 
 class MCPClientCommand extends Command
 {

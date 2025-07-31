@@ -62,7 +62,7 @@ class StdioTransporter implements Transporter
             );
         }
 
-        if (!$this->process->isRunning()) {
+        if (! $this->process->isRunning()) {
             $this->handleStartupFailure();
         }
 
@@ -82,9 +82,9 @@ class StdioTransporter implements Transporter
         ];
 
         $json = json_encode(
-                $payload,
-                JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
-            )."\n";
+            $payload,
+            JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+        )."\n";
 
         $this->process->clearOutput();
         $this->process->clearErrorOutput();
@@ -146,7 +146,7 @@ class StdioTransporter implements Transporter
     {
         $clientInfo = [
             'name' => 'laravel-mcp-client',
-            'version' => '0.1.0'
+            'version' => '0.1.0',
         ];
         $initPayloads = [
             [
@@ -156,7 +156,7 @@ class StdioTransporter implements Transporter
                 'params' => [
                     'protocolVersion' => self::PROTOCOL_VERSION,
                     'capabilities' => (object) [],
-                    'clientInfo' => $clientInfo
+                    'clientInfo' => $clientInfo,
                 ],
             ],
             [
@@ -265,6 +265,7 @@ class StdioTransporter implements Transporter
     {
         $env = $this->config['env'] ?? [];
         $env['PATH'] = getenv('PATH');
+
         return $env;
     }
 }
