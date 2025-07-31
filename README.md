@@ -1,60 +1,136 @@
-# Package that enables you access to any mcp server that you define in the config
+# Laravel MCP Client
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/redberryproducts/laravel-mcp-client.svg?style=flat-square)](https://packagist.org/packages/redberryproducts/laravel-mcp-client)
 [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/redberryproducts/laravel-mcp-client/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/redberryproducts/laravel-mcp-client/actions?query=workflow%3Arun-tests+branch%3Amain)
 [![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/redberryproducts/laravel-mcp-client/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/redberryproducts/laravel-mcp-client/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/redberryproducts/laravel-mcp-client.svg?style=flat-square)](https://packagist.org/packages/redberryproducts/laravel-mcp-client)
 
-This is where your description should go. Limit it to a paragraph or two. Consider adding a small example.
+A Laravel package that provides seamless integration with Model Context Protocol (MCP) servers. This package allows you to connect to any MCP server defined in your configuration, whether it's a remote HTTP-based server or a local process using STDIO communication.
 
-## Support us
-
-[<img src="https://github-ads.s3.eu-central-1.amazonaws.com/laravel-mcp-client.jpg?t=1" width="419px" />](https://spatie.be/github-ad-click/laravel-mcp-client)
-
-We invest a lot of resources into creating [best in class open source packages](https://spatie.be/open-source). You can support us by [buying one of our paid products](https://spatie.be/open-source/support-us).
-
-We highly appreciate you sending us a postcard from your hometown, mentioning which of our package(s) you are using. You'll find our address on [our contact page](https://spatie.be/about-us). We publish all received postcards on [our virtual postcard wall](https://spatie.be/open-source/postcards).
+Key features:
+- Connect to multiple MCP servers defined in your configuration
+- Support for HTTP and STDIO transport methods
+- Simple API for retrieving tools and resources from MCP servers
+- Flexible configuration options for different server types
+- Laravel-friendly integration with dependency injection
 
 ## Installation
 
 You can install the package via composer:
 
 ```bash
-composer require redberryproducts/laravel-mcp-client
+composer require redberry/laravel-mcp-client
 ```
 
-You can publish and run the migrations with:
+After installation, publish the configuration file:
 
 ```bash
-php artisan vendor:publish --tag="laravel-mcp-client-migrations"
-php artisan migrate
+php artisan vendor:publish --tag="mcp-client-config"
 ```
 
-You can publish the config file with:
+This will create a `config/mcp-client.php` file in your application.
 
-```bash
-php artisan vendor:publish --tag="laravel-mcp-client-config"
-```
+## Configuration
 
-This is the contents of the published config file:
+The published configuration file contains settings for your MCP servers. Here's an example configuration:
 
 ```php
 return [
+    'servers' => [
+        'github' => [
+            'type' => \Redberry\MCPClient\Enums\Transporters::HTTP,
+            'base_url' => 'https://api.githubcopilot.com/mcp',
+            'timeout' => 30,
+            'token' => env('GITHUB_API_TOKEN', null),
+        ],
+        'npx_mcp_server' => [
+            'type' => \Redberry\MCPClient\Enums\Transporters::STDIO,
+            'command' => [
+                'npx',
+                '-y',
+                '@modelcontextprotocol/server-memory',
+            ],
+            'timeout' => 30,
+            'cwd' => base_path(),
+        ],
+    ],
 ];
 ```
 
-Optionally, you can publish the views using
+### Configuration Options
 
-```bash
-php artisan vendor:publish --tag="laravel-mcp-client-views"
-```
+#### HTTP Transporter
+- `type`: Set to `Redberry\MCPClient\Enums\Transporters::HTTP` for HTTP connections
+- `base_url`: The base URL of the MCP server
+- `timeout`: Request timeout in seconds
+- `token`: Authentication token (if required)
+
+#### STDIO Transporter
+- `type`: Set to `Redberry\MCPClient\Enums\Transporters::STDIO` for STDIO connections
+- `command`: Array of command parts to execute the MCP server
+- `timeout`: Command timeout in seconds
+- `cwd`: Current working directory for the command
 
 ## Usage
 
+### Basic Usage
+
 ```php
-$mCPClient = new Redberry\MCPClient();
-echo $mCPClient->echoPhrase('Hello, Redberry!');
+use Redberry\MCPClient\Facades\MCPClient;
+
+// Connect to a specific MCP server defined in your config
+$client = MCPClient::connect('github');
+
+// Get available tools from the MCP server
+$tools = $client->tools();
+
+// Get available resources from the MCP server
+$resources = $client->resources();
 ```
+
+### Using Dependency Injection
+
+```php
+use Redberry\MCPClient\MCPClient;
+
+class MyService
+{
+    public function __construct(private MCPClient $mcpClient)
+    {
+    }
+    
+    public function getToolsFromGithub()
+    {
+        return $this->mcpClient->connect('github')->tools();
+    }
+}
+```
+
+### Working with Collections
+
+The `tools()` and `resources()` methods return a `Collection` object that provides helpful methods for working with the results:
+
+```php
+// Get all tools as an array
+$allTools = $client->tools()->all();
+
+// Get only specific tools by name
+$specificTools = $client->tools()->only('tool1', 'tool2');
+
+// Exclude specific tools
+$filteredTools = $client->tools()->except('tool3');
+
+// Map over tools
+$mappedTools = $client->tools()->map(function ($tool) {
+    return $tool['name'];
+});
+```
+
+## Advanced Usage
+
+### Creating Custom Transporters
+
+If you need to create a custom transporter, you can extend the `Transporter` interface and implement your own transport mechanism. Then register it in the `TransporterFactory`.
 
 ## Testing
 
