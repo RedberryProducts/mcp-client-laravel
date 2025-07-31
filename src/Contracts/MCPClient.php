@@ -9,4 +9,6 @@ interface MCPClient
     public function tools();
 
     public function resources();
+
+    public function callTool(string $toolName, mixed $params = []): mixed;
 }

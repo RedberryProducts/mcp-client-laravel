@@ -19,20 +19,22 @@ class StdioTransporter implements Transporter
 
     private const PROTOCOL_VERSION = '2024-11-05';
 
-    private const DEFAULT_TIMEOUT = 30;
+    private const DEFAULT_TIMEOUT = 3;
 
     /** @var list<string> */
     private array $command;
 
-    /** @var array<string, string> */
-    private array $env;
-
     private ?string $cwd;
 
+    private array $config;
+
+    /**
+     * @throws ServerConfigurationException
+     */
     public function __construct(array $config)
     {
+        $this->config = $config;
         $this->command = $config['command'] ?? [];
-        $this->env = $config['env'] ?? [];
         $this->cwd = $config['cwd'] ?? null;
 
         $this->validateConfig();
@@ -79,7 +81,7 @@ class StdioTransporter implements Transporter
             'jsonrpc' => '2.0',
             'id' => $id,
             'method' => $action,
-            'params' => $params ?: (object) [],
+            'params' => (object) $params,
         ];
 
         $json = json_encode(
@@ -123,20 +125,19 @@ class StdioTransporter implements Transporter
 
     protected function initializeProcess(): void
     {
-        $this->inputStream = new InputStream;
+        $env = $this->getEnv();
 
-        $process = Process::fromShellCommandline(
-            $this->buildCommandLine(),
+        $this->inputStream = new InputStream;
+        $this->process = new Process(
+            $this->command,
             $this->cwd,
-            $this->env,
+            $env,
             $this->inputStream,
-            $this->env['timeout'] ?? self::DEFAULT_TIMEOUT
+            $env['timeout'] ?? self::DEFAULT_TIMEOUT
         );
 
-        $process->setTty(false);
-        $process->setPty(false);
-
-        $this->process = $process;
+        $this->process->setTty(false);
+        $this->process->setPty(false);
     }
 
     private function buildCommandLine(): string
@@ -146,6 +147,10 @@ class StdioTransporter implements Transporter
 
     protected function sendInitializeRequests(): void
     {
+        $clientInfo = [
+            'name' => 'laravel-mcp-client',
+            'version' => '0.1.0',
+        ];
         $initPayloads = [
             [
                 'jsonrpc' => '2.0',
@@ -154,6 +159,7 @@ class StdioTransporter implements Transporter
                 'params' => [
                     'protocolVersion' => self::PROTOCOL_VERSION,
                     'capabilities' => (object) [],
+                    'clientInfo' => $clientInfo,
                 ],
             ],
             [
@@ -180,18 +186,17 @@ class StdioTransporter implements Transporter
      */
     private function handleStartupFailure(): void
     {
-        $exitCode = $this->process->getExitCode();
-        $errorOutput = $this->process->getErrorOutput();
-        $output = $this->process->getOutput();
+        $cmd = $this->buildCommandLine();
+        $exit = $this->process->getExitCode();
+        $err = $this->process->getErrorOutput();
+        $out = $this->process->getOutput();
 
-        $this->cleanup();
+        error_log("Failed to launch: $cmd (exit $exit). stderr: $err ; stdout: $out");
 
         throw new TransporterRequestException(
             sprintf(
-                'Process failed to start (exit code: %s). Error: %s; Output: %s',
-                $exitCode,
-                $errorOutput,
-                $output
+                'Process failed to start (exit code: %s). Error: %s; Output: %s. Command was: %s',
+                $exit, $err, $out, $cmd
             )
         );
     }
@@ -201,8 +206,9 @@ class StdioTransporter implements Transporter
      */
     protected function waitForResponse(string $id): array
     {
+        $env = $this->getEnv();
         $start = microtime(true);
-        $timeout = $this->env['timeout'] ?? self::DEFAULT_TIMEOUT;
+        $timeout = $env['timeout'] ?? self::DEFAULT_TIMEOUT;
         $buffer = '';
 
         while ((microtime(true) - $start) < $timeout) {
@@ -253,5 +259,16 @@ class StdioTransporter implements Transporter
         }
 
         unset($this->process, $this->inputStream);
+    }
+
+    /**
+     * @return array|mixed
+     */
+    public function getEnv(): mixed
+    {
+        $env = $this->config['env'] ?? [];
+        $env['PATH'] = getenv('PATH');
+
+        return $env;
     }
 }
