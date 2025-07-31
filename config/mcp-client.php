@@ -17,6 +17,7 @@ return [
             ],
             'timeout' => 30,
             'cwd' => base_path(),
+            'env' => []
         ],
     ],
 
