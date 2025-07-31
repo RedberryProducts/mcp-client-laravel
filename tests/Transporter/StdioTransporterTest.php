@@ -75,7 +75,8 @@ describe('StdioTransporter', function () {
     });
 
     it('throws TransporterRequestException on timeout', function () {
-        $mock = Mockery::mock(StdioTransporter::class)->makePartial();
+        $config = ['command' => ['echo', 'hi'], 'env' => ['timeout' => 1]];
+        $mock = Mockery::mock(StdioTransporter::class, [$config])->makePartial();
         $mock->shouldAllowMockingProtectedMethods();
 
         $mock->shouldReceive('start')->once();
@@ -84,6 +85,7 @@ describe('StdioTransporter', function () {
         $process->shouldReceive('clearOutput')->once();
         $process->shouldReceive('clearErrorOutput')->once();
         $process->shouldReceive('getIncrementalOutput')->andReturn('');
+        $process->shouldReceive('isRunning');
 
         $ref = new ReflectionClass(StdioTransporter::class);
 
@@ -91,14 +93,12 @@ describe('StdioTransporter', function () {
         $procProp->setAccessible(true);
         $procProp->setValue($mock, $process);
 
-        $envProp = $ref->getProperty('env');
-        $envProp->setAccessible(true);
-        $envProp->setValue($mock, ['timeout' => 1]);
-
         $this->expectException(TransporterRequestException::class);
         $this->expectExceptionMessageMatches('/Timeout after 1 seconds/');
+
         $inputStream = Mockery::mock(InputStream::class);
         $inputStream->shouldReceive('write')->once();
+        $inputStream->shouldReceive('close');
 
         $inputStreamProp = $ref->getProperty('inputStream');
         $inputStreamProp->setAccessible(true);
@@ -238,7 +238,8 @@ describe('StdioTransporter', function () {
     });
 
     it('waitForResponse returns result when valid matching response is found', function () {
-        $transporter = Mockery::mock(StdioTransporter::class, [['command' => ['echo', 'hi']]])->makePartial();
+        $config = ['command' => ['echo', 'hi'], 'env' => ['timeout' => 1]];
+        $transporter = Mockery::mock(StdioTransporter::class, [$config])->makePartial();
         $transporter->shouldAllowMockingProtectedMethods();
 
         $id = '123';
@@ -260,10 +261,6 @@ describe('StdioTransporter', function () {
         $procProp->setAccessible(true);
         $procProp->setValue($transporter, $process);
 
-        $envProp = $ref->getProperty('env');
-        $envProp->setAccessible(true);
-        $envProp->setValue($transporter, ['timeout' => 1]);
-
         $method = $ref->getMethod('waitForResponse');
         $method->setAccessible(true);
 
@@ -273,7 +270,8 @@ describe('StdioTransporter', function () {
     });
 
     it('waitForResponse throws exception when response contains error', function () {
-        $transporter = Mockery::mock(StdioTransporter::class, [['command' => ['echo', 'hi']]])->makePartial();
+        $config = ['command' => ['echo', 'hi'], 'env' => ['timeout' => 1]];
+        $transporter = Mockery::mock(StdioTransporter::class, [$config])->makePartial();
         $transporter->shouldAllowMockingProtectedMethods();
 
         $id = '456';
@@ -294,10 +292,6 @@ describe('StdioTransporter', function () {
         $procProp = $ref->getProperty('process');
         $procProp->setAccessible(true);
         $procProp->setValue($transporter, $process);
-
-        $envProp = $ref->getProperty('env');
-        $envProp->setAccessible(true);
-        $envProp->setValue($transporter, ['timeout' => 1]);
 
         $method = $ref->getMethod('waitForResponse');
         $method->setAccessible(true);
@@ -331,10 +325,6 @@ describe('StdioTransporter', function () {
         $procProp = $ref->getProperty('process');
         $procProp->setAccessible(true);
         $procProp->setValue($transporter, $process);
-
-        $envProp = $ref->getProperty('env');
-        $envProp->setAccessible(true);
-        $envProp->setValue($transporter, ['timeout' => 1]);
 
         $method = $ref->getMethod('waitForResponse');
         $method->setAccessible(true);

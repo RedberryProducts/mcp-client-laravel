@@ -19,18 +19,21 @@ class StdioTransporter implements Transporter
 
     private const PROTOCOL_VERSION = '2024-11-05';
 
-    private const DEFAULT_TIMEOUT = 30;
+    private const DEFAULT_TIMEOUT = 3;
 
     /** @var list<string> */
     private array $command;
 
     private ?string $cwd;
 
+    private array $config;
+
     /**
      * @throws ServerConfigurationException
      */
     public function __construct(array $config)
     {
+        $this->config = $config;
         $this->command = $config['command'] ?? [];
         $this->cwd = $config['cwd'] ?? null;
 
@@ -62,7 +65,7 @@ class StdioTransporter implements Transporter
             );
         }
 
-        if (! $this->process->isRunning()) {
+        if (!$this->process->isRunning()) {
             $this->handleStartupFailure();
         }
 
@@ -82,9 +85,9 @@ class StdioTransporter implements Transporter
         ];
 
         $json = json_encode(
-            $payload,
-            JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
-        )."\n";
+                $payload,
+                JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+            )."\n";
 
         $this->process->clearOutput();
         $this->process->clearErrorOutput();
