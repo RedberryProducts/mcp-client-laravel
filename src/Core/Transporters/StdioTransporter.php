@@ -81,7 +81,7 @@ class StdioTransporter implements Transporter
             'jsonrpc' => '2.0',
             'id' => $id,
             'method' => $action,
-            'params' => (object) $params ?: (object) [],
+            'params' => (object) $params,
         ];
 
         $json = json_encode(
