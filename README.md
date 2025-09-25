@@ -8,11 +8,12 @@
 A Laravel package that provides seamless integration with Model Context Protocol (MCP) servers. This package allows you to connect to any MCP server defined in your configuration, whether it's a remote HTTP-based server or a local process using STDIO communication.
 
 Key features:
-- Connect to multiple MCP servers defined in your configuration
-- Support for HTTP and STDIO transport methods
-- Simple API for retrieving tools and resources from MCP servers
-- Flexible configuration options for different server types
-- Laravel-friendly integration with dependency injection
+
+-   Connect to multiple MCP servers defined in your configuration
+-   Support for HTTP and STDIO transport methods
+-   Simple API for retrieving tools and resources from MCP servers
+-   Flexible configuration options for different server types
+-   Laravel-friendly integration with dependency injection
 
 ## Installation
 
@@ -60,16 +61,18 @@ return [
 ### Configuration Options
 
 #### HTTP Transporter
-- `type`: Set to `Redberry\MCPClient\Enums\Transporters::HTTP` for HTTP connections
-- `base_url`: The base URL of the MCP server
-- `timeout`: Request timeout in seconds
-- `token`: Authentication token (if required)
+
+-   `type`: Set to `Redberry\MCPClient\Enums\Transporters::HTTP` for HTTP connections
+-   `base_url`: The base URL of the MCP server
+-   `timeout`: Request timeout in seconds
+-   `token`: Authentication token (if required)
 
 #### STDIO Transporter
-- `type`: Set to `Redberry\MCPClient\Enums\Transporters::STDIO` for STDIO connections
-- `command`: Array of command parts to execute the MCP server
-- `timeout`: Command timeout in seconds
-- `cwd`: Current working directory for the command
+
+-   `type`: Set to `Redberry\MCPClient\Enums\Transporters::STDIO` for STDIO connections
+-   `command`: Array of command parts to execute the MCP server
+-   `timeout`: Command timeout in seconds
+-   `cwd`: Current working directory for the command
 
 ## Usage
 
@@ -98,7 +101,7 @@ class MyService
     public function __construct(private MCPClient $mcpClient)
     {
     }
-    
+
     public function getToolsFromGithub()
     {
         return $this->mcpClient->connect('github')->tools();
@@ -124,6 +127,42 @@ $filteredTools = $client->tools()->except('tool3');
 $mappedTools = $client->tools()->map(function ($tool) {
     return $tool['name'];
 });
+```
+
+### Call tools
+
+The `callTool` method is used to execute specific tool. Here is the signature:
+
+```php
+public function callTool(string $toolName, mixed $params = []): mixed;
+```
+
+Example:
+
+```php
+$result = $client->callTool('create_entities', [
+    'entities' => [
+        [
+            'name' => 'John Doe',
+            'entityType' => 'PERSON',
+            'observations' => ['Test observation 1', 'Test observation 2'],
+        ]
+    ],
+]);
+```
+
+### Read Resources
+
+The `readResource` method is used to retrive the resource by the `uri`.
+
+```php
+public function readResource(string $uri): mixed;
+```
+
+Example:
+
+```php
+$result = $client->readResource("file:///project/src/main.rs");
 ```
 
 ## Advanced Usage
@@ -152,8 +191,8 @@ Please review [our security policy](../../security/policy) on how to report secu
 
 ## Credits
 
-- [Nika Jorjoliani](https://github.com/nikajorjika)
-- [All Contributors](../../contributors)
+-   [Nika Jorjoliani](https://github.com/nikajorjika)
+-   [All Contributors](../../contributors)
 
 ## License
 
