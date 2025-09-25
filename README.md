@@ -153,7 +153,7 @@ $result = $client->callTool('create_entities', [
 
 ### Read Resources
 
-The `readResource` method is used to retrive the resource by the `uri`.
+The `readResource` method is used to retrieve the resource by the `uri`.
 
 ```php
 public function readResource(string $uri): mixed;
