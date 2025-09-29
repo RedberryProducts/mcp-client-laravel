@@ -148,7 +148,7 @@ class StdioTransporter implements Transporter
     protected function sendInitializeRequests(): void
     {
         $clientInfo = [
-            'name' => 'laravel-mcp-client',
+            'name' => 'mcp-client-laravel',
             'version' => '0.1.0',
         ];
         $initPayloads = [
