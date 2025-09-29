@@ -59,7 +59,7 @@ class MCPClient implements IMCPClient
 
         return $this->transporter->request('tools/call', $requestParams);
     }
-    
+
     public function readResource(string $uri): mixed
     {
         $requestParams = [
