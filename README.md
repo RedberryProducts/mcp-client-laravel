@@ -1,9 +1,9 @@
 # Laravel MCP Client
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/redberryproducts/laravel-mcp-client.svg?style=flat-square)](https://packagist.org/packages/redberryproducts/laravel-mcp-client)
-[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/redberryproducts/laravel-mcp-client/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/redberryproducts/laravel-mcp-client/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/redberryproducts/laravel-mcp-client/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/redberryproducts/laravel-mcp-client/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
-[![Total Downloads](https://img.shields.io/packagist/dt/redberryproducts/laravel-mcp-client.svg?style=flat-square)](https://packagist.org/packages/redberryproducts/laravel-mcp-client)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/redberryproducts/mcp-client-laravel.svg?style=flat-square)](https://packagist.org/packages/redberryproducts/mcp-client-laravel)
+[![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/redberryproducts/mcp-client-laravel/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/redberryproducts/mcp-client-laravel/actions?query=workflow%3Arun-tests+branch%3Amain)
+[![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/redberryproducts/mcp-client-laravel/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/redberryproducts/mcp-client-laravel/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
+[![Total Downloads](https://img.shields.io/packagist/dt/redberryproducts/mcp-client-laravel.svg?style=flat-square)](https://packagist.org/packages/redberryproducts/mcp-client-laravel)
 
 A Laravel package that provides seamless integration with Model Context Protocol (MCP) servers. This package allows you to connect to any MCP server defined in your configuration, whether it's a remote HTTP-based server or a local process using STDIO communication.
 
@@ -22,7 +22,7 @@ _Note that while project is running with `php artisan serve` **STDIO** transport
 You can install the package via composer:
 
 ```bash
-composer require redberry/laravel-mcp-client
+composer require redberry/mcp-client-laravel
 ```
 
 After installation, publish the configuration file:
