@@ -75,7 +75,7 @@ describe('StdioTransporter', function () {
     });
 
     it('throws TransporterRequestException on timeout', function () {
-        $config = ['command' => ['echo', 'hi'], 'env' => ['timeout' => 1]];
+        $config = ['command' => ['echo', 'hi'], 'timeout' => 1, 'env' => []];
         $mock = Mockery::mock(StdioTransporter::class, [$config])->makePartial();
         $mock->shouldAllowMockingProtectedMethods();
 
@@ -238,7 +238,7 @@ describe('StdioTransporter', function () {
     });
 
     it('waitForResponse returns result when valid matching response is found', function () {
-        $config = ['command' => ['echo', 'hi'], 'env' => ['timeout' => 1]];
+        $config = ['command' => ['echo', 'hi'], 'timeout' => 1, 'env' => []];
         $transporter = Mockery::mock(StdioTransporter::class, [$config])->makePartial();
         $transporter->shouldAllowMockingProtectedMethods();
 
@@ -270,7 +270,7 @@ describe('StdioTransporter', function () {
     });
 
     it('waitForResponse throws exception when response contains error', function () {
-        $config = ['command' => ['echo', 'hi'], 'env' => ['timeout' => 1]];
+        $config = ['command' => ['echo', 'hi'], 'timeout' => 1, 'env' => []];
         $transporter = Mockery::mock(StdioTransporter::class, [$config])->makePartial();
         $transporter->shouldAllowMockingProtectedMethods();
 

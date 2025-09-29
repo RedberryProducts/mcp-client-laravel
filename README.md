@@ -8,11 +8,14 @@
 A Laravel package that provides seamless integration with Model Context Protocol (MCP) servers. This package allows you to connect to any MCP server defined in your configuration, whether it's a remote HTTP-based server or a local process using STDIO communication.
 
 Key features:
-- Connect to multiple MCP servers defined in your configuration
-- Support for HTTP and STDIO transport methods
-- Simple API for retrieving tools and resources from MCP servers
-- Flexible configuration options for different server types
-- Laravel-friendly integration with dependency injection
+
+-   Connect to multiple MCP servers defined in your configuration
+-   Support for HTTP and STDIO transport methods
+-   Simple API for retrieving tools and resources from MCP servers
+-   Flexible configuration options for different server types
+-   Laravel-friendly integration with dependency injection
+
+_Note that while project is running with `php artisan serve` **STDIO** transporter doesn't work_
 
 ## Installation
 
@@ -60,16 +63,18 @@ return [
 ### Configuration Options
 
 #### HTTP Transporter
-- `type`: Set to `Redberry\MCPClient\Enums\Transporters::HTTP` for HTTP connections
-- `base_url`: The base URL of the MCP server
-- `timeout`: Request timeout in seconds
-- `token`: Authentication token (if required)
+
+-   `type`: Set to `Redberry\MCPClient\Enums\Transporters::HTTP` for HTTP connections
+-   `base_url`: The base URL of the MCP server
+-   `timeout`: Request timeout in seconds
+-   `token`: Authentication token (if required)
 
 #### STDIO Transporter
-- `type`: Set to `Redberry\MCPClient\Enums\Transporters::STDIO` for STDIO connections
-- `command`: Array of command parts to execute the MCP server
-- `timeout`: Command timeout in seconds
-- `cwd`: Current working directory for the command
+
+-   `type`: Set to `Redberry\MCPClient\Enums\Transporters::STDIO` for STDIO connections
+-   `command`: Array of command parts to execute the MCP server
+-   `timeout`: Command timeout in seconds
+-   `cwd`: Current working directory for the command
 
 ## Usage
 
@@ -98,7 +103,7 @@ class MyService
     public function __construct(private MCPClient $mcpClient)
     {
     }
-    
+
     public function getToolsFromGithub()
     {
         return $this->mcpClient->connect('github')->tools();
@@ -152,8 +157,8 @@ Please review [our security policy](../../security/policy) on how to report secu
 
 ## Credits
 
-- [Nika Jorjoliani](https://github.com/nikajorjika)
-- [All Contributors](../../contributors)
+-   [Nika Jorjoliani](https://github.com/nikajorjika)
+-   [All Contributors](../../contributors)
 
 ## License
 
