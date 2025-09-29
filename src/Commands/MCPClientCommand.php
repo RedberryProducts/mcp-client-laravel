@@ -21,6 +21,7 @@ class MCPClientCommand extends Command
         foreach ($tools as $tool) {
             $this->line("- {$tool['name']} ({$tool['description']})");
         }
+
         return self::SUCCESS;
     }
 }
