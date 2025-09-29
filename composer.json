@@ -1,12 +1,12 @@
 {
-    "name": "redberry/laravel-mcp-client",
+    "name": "redberry/mcp-client-laravel",
     "description": "Package that enables you access to any mcp server that you define in the config",
     "keywords": [
         "Redberry",
         "laravel",
-        "laravel-mcp-client"
+        "mcp-client-laravel"
     ],
-    "homepage": "https://github.com/redberryproducts/laravel-mcp-client",
+    "homepage": "https://github.com/redberryproducts/mcp-client-laravel",
     "license": "MIT",
     "authors": [
         {
@@ -70,6 +70,9 @@
             }
         }
     },
+    "bin": [
+        "bin/check"
+    ],
     "minimum-stability": "dev",
     "prefer-stable": true
 }
