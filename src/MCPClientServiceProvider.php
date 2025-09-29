@@ -18,9 +18,7 @@ class MCPClientServiceProvider extends PackageServiceProvider
          */
         $package
             ->name('mcp-client-laravel')
-            ->hasConfigFile()
-            ->hasViews()
-            ->hasMigration('create_laravel_mcp_client_table')
+            ->hasConfigFile('mcp-client')
             ->hasCommand(MCPClientCommand::class);
 
     }
