@@ -148,7 +148,7 @@ class StdioTransporter implements Transporter
     protected function sendInitializeRequests(): void
     {
         $clientInfo = [
-            'name' => 'mcp-client-laravel',
+            'name' => 'laravel-mcp-client',
             'version' => '0.1.0',
         ];
         $initPayloads = [
@@ -206,6 +206,7 @@ class StdioTransporter implements Transporter
      */
     protected function waitForResponse(string $id): array
     {
+        $env = $this->getEnv();
         $start = microtime(true);
         $timeout = $this->config['timeout'] ?? self::DEFAULT_TIMEOUT;
         $buffer = '';

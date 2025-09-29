@@ -75,7 +75,7 @@ describe('StdioTransporter', function () {
     });
 
     it('throws TransporterRequestException on timeout', function () {
-        $config = ['command' => ['echo', 'hi'], 'timeout' => 1, 'env' => []];
+        $config = ['command' => ['echo', 'hi'], 'env' => ['timeout' => 1]];
         $mock = Mockery::mock(StdioTransporter::class, [$config])->makePartial();
         $mock->shouldAllowMockingProtectedMethods();
 
