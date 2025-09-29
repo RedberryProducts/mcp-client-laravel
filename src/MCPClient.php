@@ -60,6 +60,15 @@ class MCPClient implements IMCPClient
         return $this->transporter->request('tools/call', $requestParams);
     }
 
+    public function readResource(string $uri): mixed
+    {
+        $requestParams = [
+            'uri' => $uri,
+        ];
+
+        return $this->transporter->request('resources/read', $requestParams);
+    }
+
     /**
      * Fetches resources from the connected MCP server.
      *

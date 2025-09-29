@@ -131,6 +131,42 @@ $mappedTools = $client->tools()->map(function ($tool) {
 });
 ```
 
+### Call tools
+
+The `callTool` method is used to execute specific tool. Here is the signature:
+
+```php
+public function callTool(string $toolName, mixed $params = []): mixed;
+```
+
+Example:
+
+```php
+$result = $client->callTool('create_entities', [
+    'entities' => [
+        [
+            'name' => 'John Doe',
+            'entityType' => 'PERSON',
+            'observations' => ['Test observation 1', 'Test observation 2'],
+        ]
+    ],
+]);
+```
+
+### Read Resources
+
+The `readResource` method is used to retrieve the resource by the `uri`.
+
+```php
+public function readResource(string $uri): mixed;
+```
+
+Example:
+
+```php
+$result = $client->readResource("file:///project/src/main.rs");
+```
+
 ## Advanced Usage
 
 ### Creating Custom Transporters
