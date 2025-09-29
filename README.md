@@ -15,6 +15,8 @@ Key features:
 -   Flexible configuration options for different server types
 -   Laravel-friendly integration with dependency injection
 
+_Note that while project is running with `php artisan serve` **STDIO** transporter doesn't work_
+
 ## Installation
 
 You can install the package via composer:
