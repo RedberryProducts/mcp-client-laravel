@@ -21,9 +21,9 @@ class StdioTransporter implements Transporter
 
     private const DEFAULT_TIMEOUT = 3;
 
-    private const DEFAULT_STARTUP_DELAY = 50; // milliseconds
+    private const DEFAULT_STARTUP_DELAY = 100; // milliseconds
 
-    private const DEFAULT_POLL_INTERVAL = 10; // milliseconds
+    private const DEFAULT_POLL_INTERVAL = 20; // milliseconds
 
     /** @var list<string> */
     private array $command;
