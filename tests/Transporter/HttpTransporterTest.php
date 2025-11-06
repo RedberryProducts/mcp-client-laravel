@@ -88,7 +88,7 @@ describe('HttpTransporter', function () {
 
         $config = $method->invoke($transporter);
 
-        expect($config['base_uri'])->toBe('http://localhost/api/');
+        expect($config['base_uri'])->toBe('http://localhost/api');
         expect($config['headers'])->toHaveKey('Accept', 'application/json');
         expect($config['headers'])->toHaveKey('Content-Type', 'application/json');
         expect(array_key_exists('Authorization', $config['headers']))->toBeFalse();
@@ -104,7 +104,7 @@ describe('HttpTransporter', function () {
 
         $config = $method->invoke($transporter);
 
-        expect($config['base_uri'])->toBe('http://example.com/api/');
+        expect($config['base_uri'])->toBe('http://example.com/api');
         expect($config['headers'])->toHaveKey('Authorization', 'Bearer secret-token');
     });
 
@@ -171,7 +171,7 @@ describe('HttpTransporter', function () {
 
         $config = $method->invoke($transporter);
 
-        expect($config['base_uri'])->toBe('https://api.example.com/');
+        expect($config['base_uri'])->toBe('https://api.example.com');
         expect($config['headers'])->toHaveKey('Authorization', 'Bearer secret-token');
         expect($config['headers'])->toHaveKey('X-Custom-Header', 'custom-value');
         expect($config['headers'])->toHaveKey('Accept', 'application/vnd.api+json');
