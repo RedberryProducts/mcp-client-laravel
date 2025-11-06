@@ -17,15 +17,6 @@ describe('HttpTransporter', function () {
         $transporter = new HttpTransporter;
         $mockClient = Mockery::mock(Client::class);
 
-        // Mock the initializeSession request
-        $responseForInitialize = $responseForInitialize ?? new Response(200, ['mcp-session-id' => 'test-session-id'], '{}');
-        $mockClient->shouldReceive('request')
-            ->once()
-            ->with('POST', '', Mockery::on(function ($options) {
-                return isset($options['json']['method']) && $options['json']['method'] === 'initialize';
-            }))
-            ->andReturn($responseForInitialize);
-
         // Inject the mocked client
         $ref = new ReflectionClass($transporter);
         $prop = $ref->getProperty('client');
@@ -36,6 +27,11 @@ describe('HttpTransporter', function () {
         $sessionProp = $ref->getProperty('sessionId');
         $sessionProp->setAccessible(true);
         $sessionProp->setValue($transporter, 'test-session-id');
+
+        // Set initialized flag to true to skip initialization
+        $initializedProp = $ref->getProperty('initialized');
+        $initializedProp->setAccessible(true);
+        $initializedProp->setValue($transporter, true);
 
         return [$transporter, $mockClient];
     }
@@ -50,18 +46,39 @@ describe('HttpTransporter', function () {
         expect($payload['jsonrpc'])->toBe('2.0');
         expect($payload['method'])->toBe('testMethod');
         expect($payload['params'])->toEqual(['param1', 2]);
-        expect(is_string($payload['id']) && preg_match('/^\d+$/', $payload['id']))->toBeTrue();
+        expect((is_string($payload['id']) || is_int($payload['id'])) && preg_match('/^\d+$/', (string) $payload['id']))->toBeTrue();
     });
 
-    test('generateId returns numeric string within range', function () {
+    test('generateId returns numeric within range', function () {
         $transporter = new HttpTransporter;
         $gen = new ReflectionMethod(HttpTransporter::class, 'generateId');
         $gen->setAccessible(true);
 
         $id = $gen->invoke($transporter);
 
-        expect(is_string($id))->toBeTrue();
-        expect(preg_match('/^\d+$/', $id) === 1 && ((int) $id >= 1 && (int) $id <= 1000000))->toBeTrue();
+        expect(is_string($id) || is_int($id))->toBeTrue();
+        expect(preg_match('/^\d+$/', (string) $id) === 1 && ((int) $id >= 1 && (int) $id <= 1000000))->toBeTrue();
+    });
+
+    test('generateId returns integer when id_type is integer', function () {
+        $transporter = new HttpTransporter(['id_type' => 'integer']);
+        $gen = new ReflectionMethod(HttpTransporter::class, 'generateId');
+        $gen->setAccessible(true);
+
+        $id = $gen->invoke($transporter);
+
+        expect(is_int($id))->toBeTrue();
+        expect($id >= 1 && $id <= 1000000)->toBeTrue();
+    });
+
+    test('generateId returns int by default', function () {
+        $transporter = new HttpTransporter;
+        $gen = new ReflectionMethod(HttpTransporter::class, 'generateId');
+        $gen->setAccessible(true);
+
+        $id = $gen->invoke($transporter);
+
+        expect(is_int($id))->toBeTrue();
     });
 
     test('getClientBaseConfig has default values', function () {
@@ -71,7 +88,7 @@ describe('HttpTransporter', function () {
 
         $config = $method->invoke($transporter);
 
-        expect($config['base_uri'])->toBe('http://localhost/api/');
+        expect($config['base_uri'])->toBe('http://localhost/api');
         expect($config['headers'])->toHaveKey('Accept', 'application/json');
         expect($config['headers'])->toHaveKey('Content-Type', 'application/json');
         expect(array_key_exists('Authorization', $config['headers']))->toBeFalse();
@@ -87,8 +104,78 @@ describe('HttpTransporter', function () {
 
         $config = $method->invoke($transporter);
 
-        expect($config['base_uri'])->toBe('http://example.com/api/');
+        expect($config['base_uri'])->toBe('http://example.com/api');
         expect($config['headers'])->toHaveKey('Authorization', 'Bearer secret-token');
+    });
+
+    test('getClientBaseConfig merges custom headers from config', function () {
+        $transporter = new HttpTransporter([
+            'headers' => [
+                'X-Custom-Header' => 'custom-value',
+                'X-API-Version' => '2.0',
+            ],
+        ]);
+        $method = new ReflectionMethod(HttpTransporter::class, 'getClientBaseConfig');
+        $method->setAccessible(true);
+
+        $config = $method->invoke($transporter);
+
+        expect($config['headers'])->toHaveKey('Accept', 'application/json');
+        expect($config['headers'])->toHaveKey('Content-Type', 'application/json');
+        expect($config['headers'])->toHaveKey('X-Custom-Header', 'custom-value');
+        expect($config['headers'])->toHaveKey('X-API-Version', '2.0');
+    });
+
+    test('custom headers from config override default headers', function () {
+        $transporter = new HttpTransporter([
+            'headers' => [
+                'Accept' => 'application/vnd.api+json',
+                'Content-Type' => 'text/plain',
+            ],
+        ]);
+        $method = new ReflectionMethod(HttpTransporter::class, 'getClientBaseConfig');
+        $method->setAccessible(true);
+
+        $config = $method->invoke($transporter);
+
+        expect($config['headers']['Accept'])->toBe('application/vnd.api+json');
+        expect($config['headers']['Content-Type'])->toBe('text/plain');
+    });
+
+    test('custom headers can override Authorization header from token', function () {
+        $transporter = new HttpTransporter([
+            'token' => 'secret-token',
+            'headers' => [
+                'Authorization' => 'Custom auth-scheme',
+            ],
+        ]);
+        $method = new ReflectionMethod(HttpTransporter::class, 'getClientBaseConfig');
+        $method->setAccessible(true);
+
+        $config = $method->invoke($transporter);
+
+        expect($config['headers']['Authorization'])->toBe('Custom auth-scheme');
+    });
+
+    test('all headers work together with custom, token, and defaults', function () {
+        $transporter = new HttpTransporter([
+            'base_url' => 'https://api.example.com',
+            'token' => 'secret-token',
+            'headers' => [
+                'X-Custom-Header' => 'custom-value',
+                'Accept' => 'application/vnd.api+json', // Override default
+            ],
+        ]);
+        $method = new ReflectionMethod(HttpTransporter::class, 'getClientBaseConfig');
+        $method->setAccessible(true);
+
+        $config = $method->invoke($transporter);
+
+        expect($config['base_uri'])->toBe('https://api.example.com');
+        expect($config['headers'])->toHaveKey('Authorization', 'Bearer secret-token');
+        expect($config['headers'])->toHaveKey('X-Custom-Header', 'custom-value');
+        expect($config['headers'])->toHaveKey('Accept', 'application/vnd.api+json');
+        expect($config['headers'])->toHaveKey('Content-Type', 'application/json');
     });
 
     test('successful request returns result field', function () {
@@ -97,7 +184,7 @@ describe('HttpTransporter', function () {
         $response = new Response(200, [], json_encode(['result' => ['foo' => 'bar']]));
         $mockClient->shouldReceive('request')
             ->once()
-            ->with('POST', 'someAction', Mockery::on(function ($options) {
+            ->with('POST', '', Mockery::on(function ($options) {
                 return isset($options['headers']['mcp-session-id']) &&
                     $options['headers']['mcp-session-id'] === 'test-session-id' &&
                     isset($options['json']['method']) &&
@@ -116,7 +203,7 @@ describe('HttpTransporter', function () {
         $response = new Response(200, [], json_encode(['foo' => 'bar']));
         $mockClient->shouldReceive('request')
             ->once()
-            ->with('POST', 'otherAction', Mockery::on(function ($options) {
+            ->with('POST', '', Mockery::on(function ($options) {
                 return isset($options['headers']['mcp-session-id']) &&
                     $options['headers']['mcp-session-id'] === 'test-session-id' &&
                     isset($options['json']['method']) &&
@@ -135,7 +222,7 @@ describe('HttpTransporter', function () {
         $response = new Response(200, [], 'not-json');
         $mockClient->shouldReceive('request')
             ->once()
-            ->with('POST', 'bad', Mockery::on(function ($options) {
+            ->with('POST', '', Mockery::on(function ($options) {
                 return isset($options['headers']['mcp-session-id']) &&
                     $options['headers']['mcp-session-id'] === 'test-session-id' &&
                     isset($options['json']['method']) &&
@@ -158,7 +245,7 @@ describe('HttpTransporter', function () {
         $response = new Response(200, [], json_encode($error));
         $mockClient->shouldReceive('request')
             ->once()
-            ->with('POST', 'errorAction', Mockery::on(function ($options) {
+            ->with('POST', '', Mockery::on(function ($options) {
                 return isset($options['headers']['mcp-session-id']) &&
                     $options['headers']['mcp-session-id'] === 'test-session-id' &&
                     isset($options['json']['method']) &&
@@ -180,7 +267,7 @@ describe('HttpTransporter', function () {
 
         $mockClient->shouldReceive('request')
             ->once()
-            ->with('POST', 'networkFailure', Mockery::on(function ($options) {
+            ->with('POST', '', Mockery::on(function ($options) {
                 return isset($options['headers']['mcp-session-id']) &&
                     $options['headers']['mcp-session-id'] === 'test-session-id' &&
                     isset($options['json']['method']) &&

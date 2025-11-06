@@ -11,7 +11,10 @@ class HttpTransporter implements Transporter
 {
     private GuzzleClient $client;
 
-    private string $sessionId;
+    // Some servers don't return session ID, so we default to "1"
+    private string $sessionId = '1';
+
+    private bool $initialized = false;
 
     /**
      * @throws GuzzleException
@@ -29,6 +32,10 @@ class HttpTransporter implements Transporter
      */
     private function initializeSession(): void
     {
+        if ($this->initialized) {
+            return;
+        }
+
         $payload = $this->preparePayload('initialize');
         $response = $this->client->request('POST', '', [
             'json' => $payload,
@@ -40,6 +47,8 @@ class HttpTransporter implements Transporter
         if (! empty($hdr)) {
             $this->sessionId = $hdr[0];
         }
+
+        $this->initialized = true;
     }
 
     /**
@@ -52,7 +61,8 @@ class HttpTransporter implements Transporter
         $payload = $this->preparePayload($action, $params);
 
         try {
-            $response = $this->client->request('POST', $action, [
+            // No action needed, we always send to the base URL
+            $response = $this->client->request('POST', '', [
                 'json' => $payload,
                 'timeout' => $this->config['timeout'] ?? 30,
                 'headers' => [
@@ -81,9 +91,14 @@ class HttpTransporter implements Transporter
         }
     }
 
-    private function generateId(): string
+    private function generateId(): string|int
     {
-        return (string) random_int(1, 1000000);
+        $id = random_int(1, 1000000);
+
+        // Check if the config specifies id_type (default is 'int')
+        $idType = $this->config['id_type'] ?? 'int';
+
+        return $idType === 'integer' || $idType === 'int' ? $id : (string) $id;
     }
 
     private function preparePayload(string $action, ?array $params = null)
@@ -103,17 +118,26 @@ class HttpTransporter implements Transporter
         $baseUri = $this->config['base_url'] ?? 'http://localhost/api';
         $token = $this->config['token'] ?? null;
 
-        $clientConfig = [
-            'base_uri' => rtrim($baseUri, '/').'/',    // ensure trailing slash
-            'headers' => [
-                'Accept' => 'application/json',
-                'Content-Type' => 'application/json',
-            ],
+        // Start with default headers
+        $headers = [
+            'Accept' => 'application/json',
+            'Content-Type' => 'application/json',
         ];
 
+        // Add Authorization header if token is provided
         if ($token) {
-            $clientConfig['headers']['Authorization'] = "Bearer {$token}";
+            $headers['Authorization'] = "Bearer {$token}";
         }
+
+        // Merge custom headers from config (config headers have higher priority)
+        if (isset($this->config['headers']) && is_array($this->config['headers'])) {
+            $headers = array_merge($headers, $this->config['headers']);
+        }
+
+        $clientConfig = [
+            'base_uri' => $baseUri,
+            'headers' => $headers,
+        ];
 
         return $clientConfig;
     }
