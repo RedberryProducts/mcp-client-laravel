@@ -57,7 +57,7 @@ describe('HttpTransporter', function () {
         $id = $gen->invoke($transporter);
 
         expect(is_string($id) || is_int($id))->toBeTrue();
-        expect(preg_match('/^\d+$/', $id) === 1 && ((int) $id >= 1 && (int) $id <= 1000000))->toBeTrue();
+        expect(preg_match('/^\d+$/', (string) $id) === 1 && ((int) $id >= 1 && (int) $id <= 1000000))->toBeTrue();
     });
 
     test('generateId returns integer when id_type is integer', function () {

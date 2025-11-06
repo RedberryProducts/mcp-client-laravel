@@ -11,7 +11,7 @@ class HttpTransporter implements Transporter
 {
     private GuzzleClient $client;
 
-    // Some servers doesn't return session ID, so we default to "1"
+    // Some servers don't return session ID, so we default to "1"
     private string $sessionId = '1';
 
     private bool $initialized = false;
@@ -95,7 +95,7 @@ class HttpTransporter implements Transporter
     {
         $id = random_int(1, 1000000);
 
-        // Check if the config specifies id_type (default is 'string')
+        // Check if the config specifies id_type (default is 'int')
         $idType = $this->config['id_type'] ?? 'int';
 
         return $idType === 'integer' || $idType === 'int' ? $id : (string) $id;

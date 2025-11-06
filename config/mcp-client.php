@@ -7,7 +7,7 @@ return [
             'base_url' => 'https://api.githubcopilot.com/mcp',
             'timeout' => 30,
             'token' => env('GITHUB_API_TOKEN', null),
-            'id_type' => 'string', // 'string' or 'int' - controls JSON-RPC id type (default: 'int')
+            'id_type' => 'int', // 'string' or 'int' - controls JSON-RPC id type (default: 'int')
             'headers' => [
                 // Add custom headers here - these will override default headers
             ],
