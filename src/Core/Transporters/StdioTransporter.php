@@ -21,6 +21,10 @@ class StdioTransporter implements Transporter
 
     private const DEFAULT_TIMEOUT = 3;
 
+    private const DEFAULT_STARTUP_DELAY = 50; // milliseconds
+
+    private const DEFAULT_POLL_INTERVAL = 10; // milliseconds
+
     /** @var list<string> */
     private array $command;
 
@@ -55,7 +59,8 @@ class StdioTransporter implements Transporter
 
         try {
             $this->process->start();
-            usleep(200_000);
+            $startupDelay = $this->config['startup_delay'] ?? self::DEFAULT_STARTUP_DELAY;
+            usleep($startupDelay * 1000); // convert milliseconds to microseconds
         } catch (\Throwable $e) {
             $this->cleanup();
             throw new TransporterRequestException(
@@ -240,7 +245,8 @@ class StdioTransporter implements Transporter
                 }
             }
 
-            usleep(50_000);
+            $pollInterval = $this->config['poll_interval'] ?? self::DEFAULT_POLL_INTERVAL;
+            usleep($pollInterval * 1000); // convert milliseconds to microseconds
         }
 
         throw new TransporterRequestException(

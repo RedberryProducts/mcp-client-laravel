@@ -46,17 +46,17 @@ describe('HttpTransporter', function () {
         expect($payload['jsonrpc'])->toBe('2.0');
         expect($payload['method'])->toBe('testMethod');
         expect($payload['params'])->toEqual(['param1', 2]);
-        expect(is_string($payload['id']) && preg_match('/^\d+$/', $payload['id']))->toBeTrue();
+        expect((is_string($payload['id']) || is_int($payload['id'])) && preg_match('/^\d+$/', (string) $payload['id']))->toBeTrue();
     });
 
-    test('generateId returns numeric string within range', function () {
+    test('generateId returns numeric within range', function () {
         $transporter = new HttpTransporter;
         $gen = new ReflectionMethod(HttpTransporter::class, 'generateId');
         $gen->setAccessible(true);
 
         $id = $gen->invoke($transporter);
 
-        expect(is_string($id))->toBeTrue();
+        expect(is_string($id) || is_int($id))->toBeTrue();
         expect(preg_match('/^\d+$/', $id) === 1 && ((int) $id >= 1 && (int) $id <= 1000000))->toBeTrue();
     });
 
@@ -71,14 +71,14 @@ describe('HttpTransporter', function () {
         expect($id >= 1 && $id <= 1000000)->toBeTrue();
     });
 
-    test('generateId returns string by default', function () {
+    test('generateId returns int by default', function () {
         $transporter = new HttpTransporter;
         $gen = new ReflectionMethod(HttpTransporter::class, 'generateId');
         $gen->setAccessible(true);
 
         $id = $gen->invoke($transporter);
 
-        expect(is_string($id))->toBeTrue();
+        expect(is_int($id))->toBeTrue();
     });
 
     test('getClientBaseConfig has default values', function () {
