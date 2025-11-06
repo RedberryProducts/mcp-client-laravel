@@ -135,7 +135,7 @@ class HttpTransporter implements Transporter
         }
 
         $clientConfig = [
-            'base_uri' => rtrim($baseUri, '/').'/',    // ensure trailing slash
+            'base_uri' => $baseUri,
             'headers' => $headers,
         ];
 
