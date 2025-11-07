@@ -115,4 +115,37 @@ describe('MCPClient', function () {
 
         $client->resources(); // should throw
     })->throws(RuntimeException::class, 'Server configuration is not set. Please connect to a server first.');
+
+    test('multiple connects to same server reuse transporter', function () {
+        $mockPool = Mockery::mock(TransporterPool::class);
+        $mockTransporter = Mockery::mock(Transporter::class);
+
+        // The pool's get method will be called twice (once per connect)
+        // but it should return the same transporter instance
+        $mockPool->shouldReceive('get')
+            ->twice()
+            ->with('using_enum', config('mcp-client.servers.using_enum'))
+            ->andReturn($mockTransporter);
+
+        $mockTransporter->shouldReceive('request')
+            ->with('tools/list')
+            ->andReturn(['tools' => [['name' => 'tool1']]]);
+
+        $mockTransporter->shouldReceive('request')
+            ->with('resources/list')
+            ->andReturn(['resources' => [['id' => 1]]]);
+
+        $client = new MCPClient(config('mcp-client.servers'), $mockPool);
+
+        // First connect
+        $client->connect('using_enum');
+        $tools = $client->tools();
+
+        // Second connect to the same server - pool returns the same transporter
+        $client->connect('using_enum');
+        $resources = $client->resources();
+
+        expect($tools)->toBeInstanceOf(Collection::class)
+            ->and($resources)->toBeInstanceOf(Collection::class);
+    });
 });
