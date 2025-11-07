@@ -2,42 +2,25 @@
 
 declare(strict_types=1);
 
-use Redberry\MCPClient\Core\TransporterFactory;
 use Redberry\MCPClient\Core\TransporterPool;
-use Redberry\MCPClient\Core\Transporters\Transporter;
+use Redberry\MCPClient\Core\Transporters\HttpTransporter;
+use Redberry\MCPClient\Core\Transporters\StdioTransporter;
 
 describe('TransporterPool', function () {
 
     it('creates transporter on first call', function () {
-        $mockFactory = Mockery::mock(TransporterFactory::class);
-        $mockTransporter = Mockery::mock(Transporter::class);
+        $config = ['type' => 'http', 'base_url' => 'https://example.com', 'timeout' => 30];
 
-        $config = ['type' => 'http', 'base_url' => 'https://example.com'];
-
-        $mockFactory->shouldReceive('make')
-            ->once()
-            ->with($config)
-            ->andReturn($mockTransporter);
-
-        $pool = new TransporterPool($mockFactory);
+        $pool = new TransporterPool();
         $transporter = $pool->get('github', $config);
 
-        expect($transporter)->toBe($mockTransporter);
+        expect($transporter)->toBeInstanceOf(HttpTransporter::class);
     });
 
     it('returns same transporter on subsequent calls', function () {
-        $mockFactory = Mockery::mock(TransporterFactory::class);
-        $mockTransporter = Mockery::mock(Transporter::class);
+        $config = ['type' => 'http', 'base_url' => 'https://example.com', 'timeout' => 30];
 
-        $config = ['type' => 'http', 'base_url' => 'https://example.com'];
-
-        // Factory should only be called once
-        $mockFactory->shouldReceive('make')
-            ->once()
-            ->with($config)
-            ->andReturn($mockTransporter);
-
-        $pool = new TransporterPool($mockFactory);
+        $pool = new TransporterPool();
 
         // First call
         $transporter1 = $pool->get('github', $config);
@@ -45,55 +28,34 @@ describe('TransporterPool', function () {
         // Second call - should return same instance
         $transporter2 = $pool->get('github', $config);
 
-        expect($transporter1)->toBe($mockTransporter)
-            ->and($transporter2)->toBe($mockTransporter)
+        expect($transporter1)->toBeInstanceOf(HttpTransporter::class)
+            ->and($transporter2)->toBeInstanceOf(HttpTransporter::class)
             ->and($transporter1)->toBe($transporter2);
     });
 
     it('forget removes transporter from pool', function () {
-        $mockFactory = Mockery::mock(TransporterFactory::class);
-        $mockTransporter1 = Mockery::mock(Transporter::class);
-        $mockTransporter2 = Mockery::mock(Transporter::class);
+        $config = ['type' => 'http', 'base_url' => 'https://example.com', 'timeout' => 30];
 
-        $config = ['type' => 'http', 'base_url' => 'https://example.com'];
-
-        // Factory should be called twice (before and after forget)
-        $mockFactory->shouldReceive('make')
-            ->twice()
-            ->with($config)
-            ->andReturn($mockTransporter1, $mockTransporter2);
-
-        $pool = new TransporterPool($mockFactory);
+        $pool = new TransporterPool();
 
         // First call
         $transporter1 = $pool->get('github', $config);
-        expect($transporter1)->toBe($mockTransporter1);
+        expect($transporter1)->toBeInstanceOf(HttpTransporter::class);
 
         // Forget the transporter
         $pool->forget('github');
 
         // Next call should create a new transporter
         $transporter2 = $pool->get('github', $config);
-        expect($transporter2)->toBe($mockTransporter2);
+        expect($transporter2)->toBeInstanceOf(HttpTransporter::class)
+            ->and($transporter1)->not->toBe($transporter2);
     });
 
     it('clear removes all transporters', function () {
-        $mockFactory = Mockery::mock(TransporterFactory::class);
-        $mockTransporter1 = Mockery::mock(Transporter::class);
-        $mockTransporter2 = Mockery::mock(Transporter::class);
+        $config1 = ['type' => 'http', 'base_url' => 'https://github.com', 'timeout' => 30];
+        $config2 = ['type' => 'http', 'base_url' => 'https://gitlab.com', 'timeout' => 30];
 
-        $config1 = ['type' => 'http', 'base_url' => 'https://github.com'];
-        $config2 = ['type' => 'http', 'base_url' => 'https://gitlab.com'];
-
-        $mockFactory->shouldReceive('make')
-            ->with($config1)
-            ->andReturn($mockTransporter1);
-
-        $mockFactory->shouldReceive('make')
-            ->with($config2)
-            ->andReturn($mockTransporter2);
-
-        $pool = new TransporterPool($mockFactory);
+        $pool = new TransporterPool();
 
         // Add two transporters
         $pool->get('github', $config1);
@@ -110,28 +72,10 @@ describe('TransporterPool', function () {
     });
 
     it('getActiveServers returns list of server names', function () {
-        $mockFactory = Mockery::mock(TransporterFactory::class);
-        $mockTransporter1 = Mockery::mock(Transporter::class);
-        $mockTransporter2 = Mockery::mock(Transporter::class);
-        $mockTransporter3 = Mockery::mock(Transporter::class);
+        $config1 = ['type' => 'http', 'base_url' => 'https://github.com', 'timeout' => 30];
+        $config2 = ['type' => 'http', 'base_url' => 'https://gitlab.com', 'timeout' => 30];
 
-        $config1 = ['type' => 'http', 'base_url' => 'https://github.com'];
-        $config2 = ['type' => 'http', 'base_url' => 'https://gitlab.com'];
-        $config3 = ['type' => 'stdio', 'command' => ['npx', 'test']];
-
-        $mockFactory->shouldReceive('make')
-            ->with($config1)
-            ->andReturn($mockTransporter1);
-
-        $mockFactory->shouldReceive('make')
-            ->with($config2)
-            ->andReturn($mockTransporter2);
-
-        $mockFactory->shouldReceive('make')
-            ->with($config3)
-            ->andReturn($mockTransporter3);
-
-        $pool = new TransporterPool($mockFactory);
+        $pool = new TransporterPool();
 
         expect($pool->getActiveServers())->toBeEmpty();
 
@@ -142,48 +86,28 @@ describe('TransporterPool', function () {
         expect($pool->getActiveServers())->toHaveCount(2)
             ->toContain('github')
             ->toContain('gitlab');
-
-        $pool->get('npx_server', $config3);
-        expect($pool->getActiveServers())->toHaveCount(3)
-            ->toContain('github')
-            ->toContain('gitlab')
-            ->toContain('npx_server');
     });
 
     it('handles multiple different servers correctly', function () {
-        $mockFactory = Mockery::mock(TransporterFactory::class);
-        $mockTransporter1 = Mockery::mock(Transporter::class);
-        $mockTransporter2 = Mockery::mock(Transporter::class);
+        $config1 = ['type' => 'http', 'base_url' => 'https://github.com', 'timeout' => 30];
+        $config2 = ['type' => 'stdio', 'command' => ['echo', 'test'], 'timeout' => 30];
 
-        $config1 = ['type' => 'http', 'base_url' => 'https://github.com'];
-        $config2 = ['type' => 'stdio', 'command' => ['npx', 'test']];
-
-        $mockFactory->shouldReceive('make')
-            ->once()
-            ->with($config1)
-            ->andReturn($mockTransporter1);
-
-        $mockFactory->shouldReceive('make')
-            ->once()
-            ->with($config2)
-            ->andReturn($mockTransporter2);
-
-        $pool = new TransporterPool($mockFactory);
+        $pool = new TransporterPool();
 
         // Get different servers
         $t1 = $pool->get('github', $config1);
         $t2 = $pool->get('npx_server', $config2);
 
-        // Should be different instances
-        expect($t1)->toBe($mockTransporter1)
-            ->and($t2)->toBe($mockTransporter2)
+        // Should be different instances and different types
+        expect($t1)->toBeInstanceOf(HttpTransporter::class)
+            ->and($t2)->toBeInstanceOf(StdioTransporter::class)
             ->and($t1)->not->toBe($t2);
 
         // Getting same servers again should return same instances
         $t1Again = $pool->get('github', $config1);
         $t2Again = $pool->get('npx_server', $config2);
 
-        expect($t1Again)->toBe($mockTransporter1)
-            ->and($t2Again)->toBe($mockTransporter2);
+        expect($t1Again)->toBe($t1)
+            ->and($t2Again)->toBe($t2);
     });
 });

@@ -20,10 +20,6 @@ class TransporterPool
      */
     private array $transporters = [];
 
-    public function __construct(
-        private readonly TransporterFactory $factory = new TransporterFactory
-    ) {}
-
     /**
      * Get or create a transporter for the given server.
      *
@@ -34,7 +30,7 @@ class TransporterPool
     public function get(string $serverName, array $config): Transporter
     {
         if (!isset($this->transporters[$serverName])) {
-            $this->transporters[$serverName] = $this->factory->make($config);
+            $this->transporters[$serverName] = TransporterFactory::make($config);
         }
 
         return $this->transporters[$serverName];

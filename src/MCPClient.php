@@ -14,8 +14,6 @@ class MCPClient implements IMCPClient
 
     private Transporter $transporter;
 
-    private string $currentServerName;
-
     /**
      * Connects to a specified MCP server.
      */
@@ -32,7 +30,6 @@ class MCPClient implements IMCPClient
 
         $this->ensureConfigurationValidity();
 
-        $this->currentServerName = $serverName;
         $this->transporter = $this->getTransporter($serverName, $this->serverConfig);
 
         return $this;
