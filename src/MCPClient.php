@@ -3,7 +3,7 @@
 namespace Redberry\MCPClient;
 
 use Redberry\MCPClient\Contracts\MCPClient as IMCPClient;
-use Redberry\MCPClient\Core\TransporterFactory;
+use Redberry\MCPClient\Core\TransporterPool;
 use Redberry\MCPClient\Core\Transporters\Transporter;
 
 class MCPClient implements IMCPClient
@@ -14,12 +14,14 @@ class MCPClient implements IMCPClient
 
     private Transporter $transporter;
 
+    private string $currentServerName;
+
     /**
      * Connects to a specified MCP server.
      */
     public function __construct(
         array $config,
-        private readonly TransporterFactory $factory = new TransporterFactory
+        private readonly TransporterPool $pool = new TransporterPool
     ) {
         $this->config = $config;
     }
@@ -30,7 +32,8 @@ class MCPClient implements IMCPClient
 
         $this->ensureConfigurationValidity();
 
-        $this->transporter = $this->getTransporter($this->serverConfig);
+        $this->currentServerName = $serverName;
+        $this->transporter = $this->getTransporter($serverName, $this->serverConfig);
 
         return $this;
     }
@@ -84,9 +87,9 @@ class MCPClient implements IMCPClient
         return new Collection($resources);
     }
 
-    private function getTransporter(array $config): Transporter
+    private function getTransporter(string $serverName, array $config): Transporter
     {
-        return $this->factory->make($config);
+        return $this->pool->get($serverName, $config);
     }
 
     private function ensureConfigurationValidity(): void
