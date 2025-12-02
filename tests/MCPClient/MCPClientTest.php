@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Config;
 use Redberry\MCPClient\Collection;
-use Redberry\MCPClient\Core\TransporterFactory;
+use Redberry\MCPClient\Core\TransporterPool;
 use Redberry\MCPClient\Core\Transporters\Transporter;
 use Redberry\MCPClient\Enums\Transporters;
 use Redberry\MCPClient\MCPClient;
@@ -37,15 +37,15 @@ describe('MCPClient', function () {
 
     test('connect sets server config and transporter', function () {
 
-        $mockFactory = Mockery::mock(TransporterFactory::class);
+        $mockPool = Mockery::mock(TransporterPool::class);
         $mockTransporter = Mockery::mock(Transporter::class);
 
-        $mockFactory->shouldReceive('make')
+        $mockPool->shouldReceive('get')
             ->once()
-            ->with(config('mcp-client.servers.using_enum'))
+            ->with('using_enum', config('mcp-client.servers.using_enum'))
             ->andReturn($mockTransporter);
 
-        $client = new MCPClient(config('mcp-client.servers'), $mockFactory);
+        $client = new MCPClient(config('mcp-client.servers'), $mockPool);
         $connected = $client->connect('using_enum');
 
         expect($connected)->toBeInstanceOf(MCPClient::class);
@@ -53,15 +53,15 @@ describe('MCPClient', function () {
 
     test('connect sets server config and transporter when type is not enum', function () {
 
-        $mockFactory = Mockery::mock(TransporterFactory::class);
+        $mockPool = Mockery::mock(TransporterPool::class);
         $mockTransporter = Mockery::mock(Transporter::class);
 
-        $mockFactory->shouldReceive('make')
+        $mockPool->shouldReceive('get')
             ->once()
-            ->with(config('mcp-client.servers.without_enum'))
+            ->with('without_enum', config('mcp-client.servers.without_enum'))
             ->andReturn($mockTransporter);
 
-        $client = new MCPClient(config('mcp-client.servers'), $mockFactory);
+        $client = new MCPClient(config('mcp-client.servers'), $mockPool);
         $connected = $client->connect('without_enum');
 
         expect($connected)->toBeInstanceOf(MCPClient::class);
@@ -69,16 +69,16 @@ describe('MCPClient', function () {
 
     test('tools returns collection of tools', function () {
         $mockTransporter = Mockery::mock(Transporter::class);
-        $mockFactory = Mockery::mock(TransporterFactory::class);
+        $mockPool = Mockery::mock(TransporterPool::class);
 
         $mockTransporter->shouldReceive('request')
             ->once()
             ->with('tools/list')
             ->andReturn(['tools' => [['name' => 'tool1'], ['name' => 'tool2']]]);
 
-        $mockFactory->shouldReceive('make')->andReturn($mockTransporter);
+        $mockPool->shouldReceive('get')->andReturn($mockTransporter);
 
-        $client = new MCPClient(config('mcp-client.servers'), $mockFactory);
+        $client = new MCPClient(config('mcp-client.servers'), $mockPool);
         $client->connect('using_enum');
         $tools = $client->tools();
 
@@ -88,15 +88,15 @@ describe('MCPClient', function () {
 
     test('resources returns collection of resources', function () {
         $mockTransporter = Mockery::mock(Transporter::class);
-        $mockFactory = Mockery::mock(TransporterFactory::class);
+        $mockPool = Mockery::mock(TransporterPool::class);
         $mockTransporter->shouldReceive('request')
             ->once()
             ->with('resources/list')
             ->andReturn(['resources' => [['id' => 1], ['id' => 2]]]);
 
-        $mockFactory->shouldReceive('make')->andReturn($mockTransporter);
+        $mockPool->shouldReceive('get')->andReturn($mockTransporter);
 
-        $client = new MCPClient(config('mcp-client.servers'), $mockFactory);
+        $client = new MCPClient(config('mcp-client.servers'), $mockPool);
         $client->connect('using_enum');
         $resources = $client->resources();
 
@@ -115,4 +115,37 @@ describe('MCPClient', function () {
 
         $client->resources(); // should throw
     })->throws(RuntimeException::class, 'Server configuration is not set. Please connect to a server first.');
+
+    test('multiple connects to same server reuse transporter', function () {
+        $mockPool = Mockery::mock(TransporterPool::class);
+        $mockTransporter = Mockery::mock(Transporter::class);
+
+        // The pool's get method will be called twice (once per connect)
+        // but it should return the same transporter instance
+        $mockPool->shouldReceive('get')
+            ->twice()
+            ->with('using_enum', config('mcp-client.servers.using_enum'))
+            ->andReturn($mockTransporter);
+
+        $mockTransporter->shouldReceive('request')
+            ->with('tools/list')
+            ->andReturn(['tools' => [['name' => 'tool1']]]);
+
+        $mockTransporter->shouldReceive('request')
+            ->with('resources/list')
+            ->andReturn(['resources' => [['id' => 1]]]);
+
+        $client = new MCPClient(config('mcp-client.servers'), $mockPool);
+
+        // First connect
+        $client->connect('using_enum');
+        $tools = $client->tools();
+
+        // Second connect to the same server - pool returns the same transporter
+        $client->connect('using_enum');
+        $resources = $client->resources();
+
+        expect($tools)->toBeInstanceOf(Collection::class)
+            ->and($resources)->toBeInstanceOf(Collection::class);
+    });
 });

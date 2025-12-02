@@ -3,7 +3,7 @@
 namespace Redberry\MCPClient;
 
 use Redberry\MCPClient\Commands\MCPClientCommand;
-use Redberry\MCPClient\Core\TransporterFactory;
+use Redberry\MCPClient\Core\TransporterPool;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -25,10 +25,15 @@ class MCPClientServiceProvider extends PackageServiceProvider
 
     public function packageBooted(): void
     {
+        // Register TransporterPool as singleton
+        $this->app->singleton(TransporterPool::class, function ($app) {
+            return new TransporterPool();
+        });
+
         $this->app->bind(MCPClient::class, function ($app) {
             $servers = $app['config']->get('mcp-client.servers', []);
 
-            return new MCPClient($servers, $app->make(TransporterFactory::class));
+            return new MCPClient($servers, $app->make(TransporterPool::class));
         });
     }
 }
