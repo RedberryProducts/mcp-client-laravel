@@ -1,23 +1,38 @@
-# Laravel MCP Client
+# MCP Client for Laravel
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/redberry/mcp-client-laravel.svg?style=flat-square)](https://packagist.org/packages/redberry/mcp-client-laravel)
 [![GitHub Tests Action Status](https://img.shields.io/github/actions/workflow/status/redberryproducts/mcp-client-laravel/run-tests.yml?branch=main&label=tests&style=flat-square)](https://github.com/redberryproducts/mcp-client-laravel/actions?query=workflow%3Arun-tests+branch%3Amain)
 [![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/redberryproducts/mcp-client-laravel/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/redberryproducts/mcp-client-laravel/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/redberry/mcp-client-laravel.svg?style=flat-square)](https://packagist.org/packages/redberry/mcp-client-laravel)
 
-A Laravel package that provides seamless integration with Model Context Protocol (MCP) servers. This package allows you to connect to any MCP server defined in your configuration, whether it's a remote HTTP-based server or a local process using STDIO communication.
+<p align="center">
+  <strong>Laravel-native client for Model Context Protocol (MCP) servers</strong><br>
+  Built and maintained by <a href="https://redberry.international">Redberry</a>, a Diamond-tier official Laravel partner.
+</p>
 
-Key features:
+<p align="center">
+  <a href="https://redberry.international/ai-agent-development/">AI PoC Sprint</a>
+</p>
 
--   Connect to multiple MCP servers defined in your configuration
--   Support for HTTP and STDIO transport methods
--   Simple API for retrieving tools and resources from MCP servers
--   Flexible configuration options for different server types
--   Laravel-friendly integration with dependency injection
+---
 
-_Note that while project is running with `php artisan serve` **STDIO** transporter doesn't work_
+## 🚀 What is This?
+
+This package provides a Laravel-native client for interacting with **Model Context Protocol (MCP)** servers — enabling your Laravel application to communicate with external tools, structured resources, and memory services in a standardized way.
+
+It is **framework-agnostic** and can be used in any Laravel application. Agent frameworks like [LarAgent](https://github.com/MaestroError/LarAgent) use this package internally to enable tool use, memory management, and reasoning across distributed contexts.
+
+Use it to:
+
+- Connect to any MCP-compliant server over HTTP or STDIO
+- Discover and call tools defined on MCP servers
+- Access structured memory and contextual resources
+- Extend your Laravel apps with AI-ready interfaces to external agents or toolchains
+
+> 🚀 Looking to build an AI agent in Laravel? [Talk to us](https://redberry.international/ai-agent-development/) about our 5-week PoC sprint — from idea to working prototype.
 
 ## Installation
+_Note that while project is running with `php artisan serve` **STDIO** transporter doesn't work_
 
 You can install the package via composer:
 
