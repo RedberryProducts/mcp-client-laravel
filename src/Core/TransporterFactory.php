@@ -7,6 +7,7 @@ namespace Redberry\MCPClient\Core;
 use GuzzleHttp\Exception\GuzzleException;
 use Redberry\MCPClient\Core\Transporters\HttpTransporter;
 use Redberry\MCPClient\Core\Transporters\StdioTransporter;
+use Redberry\MCPClient\Core\Transporters\StreamableHttpTransporter;
 use Redberry\MCPClient\Core\Transporters\Transporter as ITransporter;
 use Redberry\MCPClient\Enums\Transporters;
 
@@ -29,6 +30,7 @@ class TransporterFactory
 
         return match ($type) {
             'http' => new HttpTransporter($config),
+            'streamable_http' => new StreamableHttpTransporter($config),
             'stdio' => new StdioTransporter($config),
             default => throw new \InvalidArgumentException("Unsupported transporter type: {$type}"),
         };
