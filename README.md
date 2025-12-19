@@ -7,11 +7,11 @@
 
 <p align="center">
   <strong>Laravel-native client for Model Context Protocol (MCP) servers</strong><br>
-  Built and maintained by <a href="https://redberry.international">Redberry</a>, a Diamond-tier official Laravel partner.
+  Built and maintained by <a href="[https://redberry.international](https://redberry.international/?utm_source=github&utm_medium=github_mcp_readme&utm_campaign=AI+service+campaign)">Redberry</a>, a Diamond-tier official Laravel partner.
 </p>
 
 <p align="center">
-  <a href="https://redberry.international/ai-agent-development/">AI PoC Sprint</a>
+  <a href="[https://redberry.international/ai-agent-development/](https://redberry.international/ai-agent-development/?utm_source=github&utm_medium=github_mcp_readme&utm_campaign=AI+service+campaign)">AI PoC Sprint</a>
 </p>
 
 ---
@@ -29,7 +29,7 @@ Use it to:
 - Access structured memory and contextual resources
 - Extend your Laravel apps with AI-ready interfaces to external agents or toolchains
 
-> 🚀 Looking to build an AI agent in Laravel? [Talk to us](https://redberry.international/ai-agent-development/) about our 5-week PoC sprint — from idea to working prototype.
+> 🚀 Looking to build an AI agent in Laravel? [Talk to us]([https://redberry.international/ai-agent-development/](https://redberry.international/ai-agent-development/?utm_source=github&utm_medium=github_mcp_readme&utm_campaign=AI+service+campaign)) about our 5-week PoC sprint — from idea to working prototype.
 
 ## Installation
 _Note that while project is running with `php artisan serve` **STDIO** transporter doesn't work_
