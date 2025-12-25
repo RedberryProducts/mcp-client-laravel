@@ -21,6 +21,12 @@ beforeEach(function () {
             'timeout' => 30,
             'token' => 'token_value',
         ],
+        'streamable' => [
+            'type' => Transporters::STREAMABLE_HTTP,
+            'base_url' => 'https://example.com/mcp',
+            'timeout' => 30,
+            'token' => 'token_value',
+        ],
         'npx_mcp_server' => [
             'type' => Transporters::STDIO,
             'command' => [
@@ -102,6 +108,60 @@ describe('MCPClient', function () {
 
         expect($resources)->toBeInstanceOf(Collection::class)
             ->toHaveCount(2);
+    });
+
+    test('connect works with STDIO server type', function () {
+        $mockFactory = Mockery::mock(TransporterFactory::class);
+        $mockTransporter = Mockery::mock(Transporter::class);
+
+        $mockFactory->shouldReceive('make')
+            ->once()
+            ->with(config('mcp-client.servers.npx_mcp_server'))
+            ->andReturn($mockTransporter);
+
+        $client = new MCPClient(config('mcp-client.servers'), $mockFactory);
+        $connected = $client->connect('npx_mcp_server');
+
+        expect($connected)->toBeInstanceOf(MCPClient::class);
+    });
+
+    test('callTool delegates to transporter with name and arguments as object', function () {
+        $mockTransporter = Mockery::mock(Transporter::class);
+        $mockFactory = Mockery::mock(TransporterFactory::class);
+
+        $mockTransporter->shouldReceive('request')
+            ->once()
+            ->with('tools/call', Mockery::on(function ($params) {
+                // arguments should be cast to object
+                return isset($params['arguments']->x, $params['name']) && $params['name'] === 'doSomething' && is_object($params['arguments']) && $params['arguments']->x === 1;
+            }))
+            ->andReturn(['ok' => true]);
+
+        $mockFactory->shouldReceive('make')->andReturn($mockTransporter);
+
+        $client = new MCPClient(config('mcp-client.servers'), $mockFactory);
+        $client->connect('using_enum');
+        $result = $client->callTool('doSomething', ['x' => 1]);
+
+        expect($result)->toEqual(['ok' => true]);
+    });
+
+    test('readResource delegates to transporter with uri and returns response', function () {
+        $mockTransporter = Mockery::mock(Transporter::class);
+        $mockFactory = Mockery::mock(TransporterFactory::class);
+
+        $mockTransporter->shouldReceive('request')
+            ->once()
+            ->with('resources/read', ['uri' => 'file:///tmp/readme.txt'])
+            ->andReturn(['content' => 'hello']);
+
+        $mockFactory->shouldReceive('make')->andReturn($mockTransporter);
+
+        $client = new MCPClient(config('mcp-client.servers'), $mockFactory);
+        $client->connect('using_enum');
+        $result = $client->readResource('file:///tmp/readme.txt');
+
+        expect($result)->toEqual(['content' => 'hello']);
     });
 
     test('tools throws exception when not connected', function () {
