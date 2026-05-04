@@ -290,12 +290,21 @@ describe('HttpTransporter', function () {
         $transporter = new HttpTransporter([], $mockClient);
 
         $initResp = new Response(200, ['mcp-session-id' => 'sid-99', 'Content-Type' => 'application/json'], json_encode(['result' => []]));
+        $notifyResp = new Response(202, [], '');
         $reqResp = new Response(200, ['Content-Type' => 'application/json'], json_encode(['result' => ['ok' => 1]]));
 
-        $mockClient->shouldReceive('request')->once()->with('POST', '', Mockery::type('array'))->andReturn($initResp);
         $mockClient->shouldReceive('request')
             ->once()
-            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['headers']['mcp-session-id'] ?? null) === 'sid-99'))
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'initialize'))
+            ->andReturn($initResp);
+        $mockClient->shouldReceive('request')
+            ->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'notifications/initialized'))
+            ->andReturn($notifyResp);
+        $mockClient->shouldReceive('request')
+            ->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['headers']['mcp-session-id'] ?? null) === 'sid-99'
+                && ($opts['json']['method'] ?? null) === 'ping'))
             ->andReturn($reqResp);
 
         expect($transporter->request('ping'))->toEqual(['ok' => 1]);
@@ -400,6 +409,7 @@ SSE;
         $transporter = new HttpTransporter([], $mockClient);
 
         $initResp = new Response(200, ['mcp-session-id' => 'session-xyz', 'Content-Type' => 'application/json'], json_encode(['result' => []]));
+        $notifyResp = new Response(202, [], '');
         $reqResp = new Response(200, ['Content-Type' => 'application/json'], json_encode(['result' => ['after' => true]]));
 
         $mockClient->shouldReceive('request')
@@ -410,9 +420,132 @@ SSE;
 
         $mockClient->shouldReceive('request')
             ->once()
-            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['headers']['mcp-session-id'] ?? null) === 'session-xyz'))
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'notifications/initialized'
+                && ($opts['headers']['mcp-session-id'] ?? null) === 'session-xyz'))
+            ->andReturn($notifyResp);
+
+        $mockClient->shouldReceive('request')
+            ->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['headers']['mcp-session-id'] ?? null) === 'session-xyz'
+                && ($opts['json']['method'] ?? null) === 'after_init'))
             ->andReturn($reqResp);
 
         expect($transporter->request('after_init'))->toEqual(['after' => true]);
+    });
+
+    test('initialize payload contains protocolVersion, capabilities and clientInfo', function () {
+        $mockClient = Mockery::mock(Client::class);
+        $transporter = new HttpTransporter([], $mockClient);
+
+        $captured = null;
+        $initResp = new Response(200, ['mcp-session-id' => 'sid', 'Content-Type' => 'application/json'], json_encode(['result' => []]));
+        $notifyResp = new Response(202, [], '');
+        $reqResp = new Response(200, ['Content-Type' => 'application/json'], json_encode(['result' => ['ok' => true]]));
+
+        $mockClient->shouldReceive('request')
+            ->once()
+            ->with('POST', '', Mockery::on(function ($opts) use (&$captured) {
+                if (($opts['json']['method'] ?? null) !== 'initialize') {
+                    return false;
+                }
+                $captured = $opts['json'];
+
+                return true;
+            }))
+            ->andReturn($initResp);
+        $mockClient->shouldReceive('request')->once()->andReturn($notifyResp);
+        $mockClient->shouldReceive('request')->once()->andReturn($reqResp);
+
+        $transporter->request('ping');
+
+        expect($captured['params']['protocolVersion'])->toBe(\Redberry\MCPClient\Core\Mcp::PROTOCOL_VERSION)
+            ->and($captured['params']['capabilities'])->toBeInstanceOf(stdClass::class)
+            ->and($captured['params']['clientInfo']['name'])->toBe('mcp-client-laravel')
+            ->and($captured['params']['clientInfo']['version'])->toBeString()
+            ->and($captured['params']['clientInfo']['version'])->not->toBe('');
+    });
+
+    test('notifications/initialized is sent after initialize, with the captured session id and no id field', function () {
+        $mockClient = Mockery::mock(Client::class);
+        $transporter = new HttpTransporter([], $mockClient);
+
+        $captured = null;
+        $initResp = new Response(200, ['mcp-session-id' => 'sid-42', 'Content-Type' => 'application/json'], json_encode(['result' => []]));
+        $notifyResp = new Response(202, [], '');
+        $reqResp = new Response(200, ['Content-Type' => 'application/json'], json_encode(['result' => []]));
+
+        $mockClient->shouldReceive('request')->once()->andReturn($initResp);
+        $mockClient->shouldReceive('request')
+            ->once()
+            ->with('POST', '', Mockery::on(function ($opts) use (&$captured) {
+                if (($opts['json']['method'] ?? null) !== 'notifications/initialized') {
+                    return false;
+                }
+                $captured = $opts;
+
+                return true;
+            }))
+            ->andReturn($notifyResp);
+        $mockClient->shouldReceive('request')->once()->andReturn($reqResp);
+
+        $transporter->request('ping');
+
+        expect($captured['json'])->not->toHaveKey('id')
+            ->and($captured['headers']['mcp-session-id'])->toBe('sid-42')
+            ->and($captured['headers']['Accept'])->toBe('application/json, text/event-stream');
+    });
+
+    test('handshake POSTs occur in the order initialize → notifications/initialized → user request', function () {
+        $mockClient = Mockery::mock(Client::class);
+        $transporter = new HttpTransporter([], $mockClient);
+
+        $methods = [];
+        $initResp = new Response(200, ['mcp-session-id' => 'sid', 'Content-Type' => 'application/json'], json_encode(['result' => []]));
+        $notifyResp = new Response(202, [], '');
+        $reqResp = new Response(200, ['Content-Type' => 'application/json'], json_encode(['result' => []]));
+
+        $mockClient->shouldReceive('request')->times(3)
+            ->with('POST', '', Mockery::on(function ($opts) use (&$methods) {
+                $methods[] = $opts['json']['method'] ?? null;
+
+                return true;
+            }))
+            ->andReturn($initResp, $notifyResp, $reqResp);
+
+        $transporter->request('tools/list');
+
+        expect($methods)->toEqual(['initialize', 'notifications/initialized', 'tools/list']);
+    });
+
+    test('failure on notifications/initialized leaves transporter uninitialized so the next call retries', function () {
+        $mockClient = Mockery::mock(Client::class);
+        $transporter = new HttpTransporter([], $mockClient);
+
+        $initResp = new Response(200, ['mcp-session-id' => 'sid', 'Content-Type' => 'application/json'], json_encode(['result' => []]));
+        $notifyResp = new Response(202, [], '');
+        $reqResp = new Response(200, ['Content-Type' => 'application/json'], json_encode(['result' => ['ok' => true]]));
+
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'initialize'))
+            ->andReturn($initResp);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'notifications/initialized'))
+            ->andThrow(new TransferException('notify refused', 503));
+
+        expect(fn () => $transporter->request('first'))
+            ->toThrow(TransporterRequestException::class, 'HTTP error sending notifications/initialized');
+
+        // Next call should retry the full handshake.
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'initialize'))
+            ->andReturn($initResp);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'notifications/initialized'))
+            ->andReturn($notifyResp);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'second'))
+            ->andReturn($reqResp);
+
+        expect($transporter->request('second'))->toEqual(['ok' => true]);
     });
 });

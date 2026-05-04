@@ -6,6 +6,7 @@ namespace Redberry\MCPClient\Core\Transporters;
 
 use Redberry\MCPClient\Core\Exceptions\ServerConfigurationException;
 use Redberry\MCPClient\Core\Exceptions\TransporterRequestException;
+use Redberry\MCPClient\Core\Mcp;
 use Symfony\Component\Process\InputStream;
 use Symfony\Component\Process\Process;
 
@@ -16,8 +17,6 @@ class StdioTransporter implements Transporter
     private InputStream $inputStream;
 
     private int $requestId = 0;
-
-    private const PROTOCOL_VERSION = '2024-11-05';
 
     private const DEFAULT_TIMEOUT = 3;
 
@@ -152,24 +151,20 @@ class StdioTransporter implements Transporter
 
     protected function sendInitializeRequests(): void
     {
-        $clientInfo = [
-            'name' => 'mcp-client-laravel',
-            'version' => '0.1.0',
-        ];
         $initPayloads = [
             [
                 'jsonrpc' => '2.0',
                 'id' => 'init',
                 'method' => 'initialize',
                 'params' => [
-                    'protocolVersion' => self::PROTOCOL_VERSION,
+                    'protocolVersion' => Mcp::PROTOCOL_VERSION,
                     'capabilities' => (object) [],
-                    'clientInfo' => $clientInfo,
+                    'clientInfo' => Mcp::clientInfo(),
                 ],
             ],
             [
                 'jsonrpc' => '2.0',
-                'method' => 'initialized',
+                'method' => 'notifications/initialized',
                 'params' => (object) [],
             ],
         ];

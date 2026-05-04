@@ -71,7 +71,7 @@ MCPClient::callTool('x', $args)
 
 Implements MCP's [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http). Lifecycle:
 
-1. **`initializeSession()`** — runs once per instance before the first user request. POSTs an `initialize` payload, captures `mcp-session-id` from the response header, and replays it on every subsequent request via `mcp-session-id` header. *(See ROADMAP P0 — the current payload is missing `protocolVersion`/`capabilities`/`clientInfo` and the `notifications/initialized` follow-up.)*
+1. **`initializeSession()`** — runs once per instance before the first user request. POSTs an `initialize` payload, captures `mcp-session-id` from the response header, and replays it on every subsequent request via `mcp-session-id` header.
 2. Every request advertises `Accept: application/json, text/event-stream`. The server picks per-call.
 3. **`parseResponse()`** branches on the response Content-Type: `text/event-stream` → `SseStreamParser::parse()`; anything else → single JSON decode.
 4. JSON-RPC errors throw `TransporterRequestException` with the spec error code.
@@ -102,7 +102,7 @@ Reads the Guzzle `StreamInterface` in 8KB chunks, drains complete `\n`-terminate
 - **`config()` only in the service provider and `config/mcp-client.php`**, never in transporters or services
 - **Throw `TransporterRequestException`** for any transport-layer failure (HTTP error, JSON-RPC error, malformed response, timeout). Throw `ServerConfigurationException` for invalid config shapes.
 - **JSON-RPC `id` generation** must be a per-instance incrementing counter, like `StdioTransporter::$requestId` (HTTP currently uses `random_int` — see ROADMAP P5)
-- **`PROTOCOL_VERSION` belongs in one place** — once it's promoted to the `Transporter` interface or a shared value object (ROADMAP P0), reference it from both transporters
+- **`PROTOCOL_VERSION` belongs in one place** — reference `Redberry\MCPClient\Core\Mcp::PROTOCOL_VERSION` from both transporters; don't redeclare per-class.
 - **Conventional Commits:** `feat:`, `fix:`, `chore:`, `test:`, `refactor:`, `docs:`
 - **One ROADMAP item per PR** unless P4–P6 are bundled (see ROADMAP.md for the suggested PR order)
 
@@ -111,7 +111,7 @@ Reads the Guzzle `StreamInterface` in 8KB chunks, drains complete `\n`-terminate
 - Don't bypass `Transporter::request()` — it's the only IO seam and the contract every transport implements
 - Don't add new code paths that read `config()` outside the service provider
 - Don't hardcode the protocol version a second time (`'2024-11-05'` in `StdioTransporter` is already a known issue — don't replicate the pattern)
-- Don't hardcode `clientInfo.version` (`'0.1.0'` in `StdioTransporter::sendInitializeRequests()` is wrong — pull from `\Composer\InstalledVersions::getPrettyVersion('redberry/mcp-client-laravel')` once it's centralized)
+- Don't hardcode `clientInfo.version` — use `Redberry\MCPClient\Core\Mcp::clientInfo()` which sources the version from the installed composer package.
 - Don't introduce real network or real subprocesses in tests — mock Guzzle with `MockHandler`, mock STDIO with fixtures
 - Don't use `ReflectionClass` to set up transporter state in new tests — use constructor injection (HTTP transporter accepts `?GuzzleClient`)
 - Don't use `random_int` for new request id generators — use an incrementing counter
