@@ -124,8 +124,9 @@ class SseStreamParser
         }
 
         if (isset($decoded['error'])) {
+            $message = $decoded['error']['message'] ?? 'Unknown JSON-RPC error';
             throw new TransporterRequestException(
-                "JSON-RPC error: {$decoded['error']['message']}",
+                "JSON-RPC error: {$message}",
                 (int) ($decoded['error']['code'] ?? 0),
             );
         }

@@ -107,6 +107,18 @@ SSE;
             ->toThrow(TransporterRequestException::class, 'JSON-RPC error: Method not found');
     });
 
+    test('falls back to a default message when the JSON-RPC error omits message', function () {
+        $sse = "data: {\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32601}}\n\n";
+
+        try {
+            SseStreamParser::parse(Utils::streamFor($sse));
+            expect()->fail('Expected TransporterRequestException was not thrown.');
+        } catch (TransporterRequestException $e) {
+            expect($e->getMessage())->toBe('JSON-RPC error: Unknown JSON-RPC error')
+                ->and($e->getCode())->toBe(-32601);
+        }
+    });
+
     test('throws when the stream ends without any result', function () {
         $sse = <<<'SSE'
 data: {"jsonrpc":"2.0","method":"progress","params":{"pct":50}}
