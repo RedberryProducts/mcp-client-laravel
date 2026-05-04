@@ -23,7 +23,7 @@ test('count on empty collection returns zero', function () {
 test('getIterator returns ArrayIterator and iterates correctly', function () use ($sampleItems) {
     $collection = new Collection($sampleItems);
     $iterator = $collection->getIterator();
-    expect($iterator)->toBeInstanceOf(\ArrayIterator::class);
+    expect($iterator)->toBeInstanceOf(ArrayIterator::class);
 
     $results = [];
     foreach ($collection as $item) {
