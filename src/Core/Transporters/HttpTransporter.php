@@ -119,7 +119,9 @@ class HttpTransporter implements Transporter
         $contentType = strtolower(trim(explode(';', $response->getHeaderLine('Content-Type'))[0]));
 
         if ($contentType === 'text/event-stream') {
-            return SseStreamParser::parse($response->getBody(), $onEvent);
+            $readTimeout = $this->config['read_timeout'] ?? 60;
+
+            return SseStreamParser::parse($response->getBody(), $onEvent, (float) $readTimeout);
         }
 
         $body = (string) $response->getBody();

@@ -28,20 +28,36 @@ class SseStreamParser
      *
      * @param  callable(array $event):void|null  $onEvent  Invoked for every decoded event message,
      *                                                     including the final result-bearing one.
+     * @param  float|null  $readTimeout  Max seconds to wait between chunks before
+     *                                   throwing. Null disables the timeout.
+     *                                   The clock resets whenever a non-empty
+     *                                   chunk arrives, so long-running operations
+     *                                   that stream progress events stay alive.
      *
-     * @throws TransporterRequestException If the stream ends without a result, or any event carries a JSON-RPC error.
+     * @throws TransporterRequestException If the stream ends without a result, any event carries a JSON-RPC error, or the read timeout fires.
      * @throws JsonException
      */
-    public static function parse(StreamInterface $stream, ?callable $onEvent = null): array
+    public static function parse(StreamInterface $stream, ?callable $onEvent = null, ?float $readTimeout = null): array
     {
         $buffer = '';
         $current = self::emptyEvent();
         $final = null;
+        $lastChunkAt = $readTimeout !== null ? microtime(true) : 0.0;
 
         while (! $stream->eof()) {
             $chunk = $stream->read(self::READ_BYTES);
             if ($chunk === '') {
+                if ($readTimeout !== null && (microtime(true) - $lastChunkAt) > $readTimeout) {
+                    throw new TransporterRequestException(
+                        sprintf('SSE read timed out after %ss without receiving data.', $readTimeout)
+                    );
+                }
+
                 continue;
+            }
+
+            if ($readTimeout !== null) {
+                $lastChunkAt = microtime(true);
             }
 
             $buffer .= $chunk;
