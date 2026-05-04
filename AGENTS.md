@@ -1,0 +1,1 @@
+See [CLAUDE.md](CLAUDE.md) for the full set of agent-facing guidance — project overview, commands, file map, architecture, conventions, and definition of done. Domain-specific rules live in [`.claude/rules/`](.claude/rules/).
