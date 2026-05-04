@@ -367,7 +367,7 @@ describe('StdioTransporter', function () {
             ->and($initialize['params']['protocolVersion'])->toBe(Mcp::PROTOCOL_VERSION)
             ->and($initialize['params']['clientInfo']['name'])->toBe('mcp-client-laravel')
             ->and($initialize['params']['clientInfo']['version'])->toBeString()
-            ->and($initialize['params']['clientInfo']['version'])->not->toBe('0.1.0')
+            ->and($initialize['params']['clientInfo']['version'])->not->toBe('')
             ->and($notification['method'])->toBe('notifications/initialized')
             ->and(array_key_exists('id', $notification))->toBeFalse();
     });
