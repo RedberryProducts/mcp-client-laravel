@@ -358,7 +358,7 @@ SSE;
         $mockClient->shouldReceive('request')->once()->andReturn($response);
 
         $events = [];
-        $result = $transporter->request('stream', null, function (array $evt) use (&$events) {
+        $result = $transporter->request('stream', [], function (array $evt) use (&$events) {
             $events[] = $evt;
         });
 

@@ -58,7 +58,7 @@ class HttpTransporter implements Transporter
      * @throws GuzzleException
      * @throws JsonException
      */
-    public function request(string $action, ?array $params = null, ?callable $onEvent = null): array
+    public function request(string $action, array $params = [], ?callable $onEvent = null): array
     {
         $this->initializeSession();
         $payload = $this->preparePayload($action, $params);
@@ -135,12 +135,13 @@ class HttpTransporter implements Transporter
         return $idType === 'integer' || $idType === 'int' ? $id : (string) $id;
     }
 
-    private function preparePayload(string $action, ?array $params = null): array
+    private function preparePayload(string $action, array $params = []): array
     {
         return [
             'jsonrpc' => '2.0',
             'method' => $action,
-            'params' => $params ?? (object) [],
+            // Empty params must JSON-encode as {} (object), not [] (array), so spec-strict servers accept them.
+            'params' => $params === [] ? (object) [] : $params,
             'id' => $this->generateId(),
         ];
     }
