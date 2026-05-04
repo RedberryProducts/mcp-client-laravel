@@ -344,7 +344,7 @@ SSE;
         expect($transporter->request('stream'))->toEqual(['ok' => true]);
     });
 
-    test('onEvent callback receives every intermediate SSE event', function () {
+    test('onEvent callback receives every SSE event including the final result', function () {
         [$transporter, $mockClient] = createTransporterWithMockedSession();
 
         $sse = <<<'SSE'
@@ -366,6 +366,33 @@ SSE;
             ->and($events)->toHaveCount(2)
             ->and($events[0]['method'])->toBe('progress')
             ->and($events[1]['result']['done'])->toBeTrue();
+    });
+
+    test('connection failure during initialize is wrapped as TransporterRequestException', function () {
+        $mockClient = Mockery::mock(Client::class);
+        $transporter = new HttpTransporter([], $mockClient);
+
+        $mockClient->shouldReceive('request')
+            ->once()
+            ->andThrow(new TransferException('init refused', 503));
+
+        $this->expectException(TransporterRequestException::class);
+        $this->expectExceptionMessage('HTTP error during initialize handshake: init refused');
+        $this->expectExceptionCode(503);
+
+        $transporter->request('anything');
+    });
+
+    test('JSON response with scalar result returns the full envelope', function () {
+        [$transporter, $mockClient] = createTransporterWithMockedSession();
+
+        $response = new Response(200, ['Content-Type' => 'application/json'], json_encode(['jsonrpc' => '2.0', 'id' => 1, 'result' => 'plain-string']));
+        $mockClient->shouldReceive('request')->once()->andReturn($response);
+
+        $result = $transporter->request('act');
+
+        expect($result)->toBeArray()
+            ->and($result['result'])->toBe('plain-string');
     });
 
     test('initialize handshake captures mcp-session-id and reuses it', function () {

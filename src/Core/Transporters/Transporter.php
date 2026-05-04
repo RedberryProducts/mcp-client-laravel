@@ -18,8 +18,9 @@ interface Transporter
      *
      * @param  string  $action  The JSON-RPC method (e.g., 'read_pr').
      * @param  array  $params  Parameters for the request.
-     * @param  callable(array $event):void|null  $onEvent  Optional callback invoked for each
-     *                                                     intermediate streamed event (where supported by the transport).
+     * @param  callable(array $event):void|null  $onEvent  Optional callback invoked for every
+     *                                                     decoded JSON-RPC message in a streamed response, including the final
+     *                                                     result-bearing one. Not invoked when the transport does not stream.
      * @return array Decoded JSON-RPC response.
      *
      * @throws \Exception On transport failure.

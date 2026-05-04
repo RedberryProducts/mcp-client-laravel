@@ -11,10 +11,11 @@ use Redberry\MCPClient\Core\Exceptions\TransporterRequestException;
 /**
  * Parses an MCP Streamable HTTP `text/event-stream` response.
  *
- * Each Server-Sent Event carries a complete JSON-RPC message. Any event
- * with a `result` field is treated as the final response; intermediate
- * events (notifications, progress) are forwarded to the optional
- * `$onEvent` callback so callers can observe partial output.
+ * Each Server-Sent Event carries a complete JSON-RPC message. The optional
+ * `$onEvent` callback is invoked for every decoded message — notifications,
+ * progress updates, and the final result-bearing event alike — so callers
+ * can observe the full stream. The result-bearing event also drives the
+ * value returned by `parse()`.
  */
 class SseStreamParser
 {
@@ -25,7 +26,8 @@ class SseStreamParser
     /**
      * Read the stream to completion and return the final JSON-RPC `result`.
      *
-     * @param  callable(array $event):void|null  $onEvent  Invoked for every decoded event message.
+     * @param  callable(array $event):void|null  $onEvent  Invoked for every decoded event message,
+     *                                                     including the final result-bearing one.
      *
      * @throws TransporterRequestException If the stream ends without a result, or any event carries a JSON-RPC error.
      * @throws JsonException

@@ -172,7 +172,7 @@ $result = $client->callTool('create_entities', [
 
 #### Observing streamed events
 
-When the server responds with an SSE stream, you can pass an `$onEvent` callback to observe each intermediate JSON-RPC message (progress notifications, partial results, log entries) as it arrives. The call still blocks until the final `result` is returned.
+When the server responds with an SSE stream, you can pass an `$onEvent` callback to observe every decoded JSON-RPC message — progress notifications, partial results, log entries, and the final result-bearing message — as each one arrives. The call still blocks until the final `result` is returned.
 
 ```php
 $result = $client->callTool('long_running_tool', $args, function (array $event) {

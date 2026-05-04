@@ -29,7 +29,7 @@ class HttpTransporter implements Transporter
      * Perform the "initialize" handshake and capture the MCP session id.
      * Called once before the first user-issued request.
      *
-     * @throws GuzzleException
+     * @throws TransporterRequestException
      */
     private function initializeSession(): void
     {
@@ -38,12 +38,21 @@ class HttpTransporter implements Transporter
         }
 
         $payload = $this->preparePayload('initialize');
-        $response = $this->client->request('POST', '', [
-            'json' => $payload,
-            'timeout' => $this->config['timeout'] ?? 30,
-            'stream' => true,
-            'headers' => $this->buildRequestHeaders(),
-        ]);
+
+        try {
+            $response = $this->client->request('POST', '', [
+                'json' => $payload,
+                'timeout' => $this->config['timeout'] ?? 30,
+                'stream' => true,
+                'headers' => $this->buildRequestHeaders(),
+            ]);
+        } catch (GuzzleException $e) {
+            throw new TransporterRequestException(
+                "HTTP error during initialize handshake: {$e->getMessage()}",
+                (int) $e->getCode(),
+                $e
+            );
+        }
 
         $hdr = $response->getHeader('mcp-session-id');
         if (! empty($hdr)) {
@@ -108,7 +117,13 @@ class HttpTransporter implements Transporter
             );
         }
 
-        return $data['result'] ?? $data;
+        // JSON-RPC `result` may be any JSON value (null, scalar, array, object). When it isn't an
+        // array we hand back the full envelope so the typed `: array` return contract holds.
+        if (\array_key_exists('result', $data) && \is_array($data['result'])) {
+            return $data['result'];
+        }
+
+        return $data;
     }
 
     /**
