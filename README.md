@@ -84,6 +84,8 @@ return [
 -   `timeout`: Request timeout in seconds
 -   `token`: Authentication token (if required)
 
+The HTTP transporter implements MCP's [Streamable HTTP transport](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http). Each request advertises `Accept: application/json, text/event-stream`, and the server decides — per call — whether to respond with a single JSON object or an SSE stream of JSON-RPC messages. The client handles both transparently: you always receive the final `result`, regardless of how the server chose to deliver it.
+
 #### STDIO Transporter
 
 -   `type`: Set to `Redberry\MCPClient\Enums\Transporters::STDIO` for STDIO connections
@@ -151,7 +153,7 @@ $mappedTools = $client->tools()->map(function ($tool) {
 The `callTool` method is used to execute specific tool. Here is the signature:
 
 ```php
-public function callTool(string $toolName, mixed $params = []): mixed;
+public function callTool(string $toolName, mixed $params = [], ?callable $onEvent = null): mixed;
 ```
 
 Example:
@@ -168,12 +170,25 @@ $result = $client->callTool('create_entities', [
 ]);
 ```
 
-### Read Resources
+#### Observing streamed events
 
-The `readResource` method is used to retrieve the resource by the `uri`.
+When the server responds with an SSE stream, you can pass an `$onEvent` callback to observe each intermediate JSON-RPC message (progress notifications, partial results, log entries) as it arrives. The call still blocks until the final `result` is returned.
 
 ```php
-public function readResource(string $uri): mixed;
+$result = $client->callTool('long_running_tool', $args, function (array $event) {
+    // $event is a decoded JSON-RPC message: notification, progress, or final result
+    logger()->debug('mcp event', $event);
+});
+```
+
+The callback is invoked zero times if the server returns a single JSON response, so it is safe to pass unconditionally.
+
+### Read Resources
+
+The `readResource` method is used to retrieve the resource by the `uri`. It accepts the same optional `$onEvent` callback as `callTool`.
+
+```php
+public function readResource(string $uri, ?callable $onEvent = null): mixed;
 ```
 
 Example:

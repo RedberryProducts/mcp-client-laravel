@@ -77,7 +77,7 @@ class StdioTransporter implements Transporter
         $this->sendInitializeRequests();
     }
 
-    public function request(string $action, array $params = []): array
+    public function request(string $action, array $params = [], ?callable $onEvent = null): array
     {
         $this->start();
 

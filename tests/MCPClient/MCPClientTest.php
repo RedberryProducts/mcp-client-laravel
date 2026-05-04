@@ -104,6 +104,44 @@ describe('MCPClient', function () {
             ->toHaveCount(2);
     });
 
+    test('callTool forwards onEvent callback to the transporter', function () {
+        $callback = fn (array $event) => null;
+
+        $mockTransporter = Mockery::mock(Transporter::class);
+        $mockFactory = Mockery::mock(TransporterFactory::class);
+
+        $mockTransporter->shouldReceive('request')
+            ->once()
+            ->with('tools/call', Mockery::type('array'), $callback)
+            ->andReturn(['ok' => true]);
+
+        $mockFactory->shouldReceive('make')->andReturn($mockTransporter);
+
+        $client = new MCPClient(config('mcp-client.servers'), $mockFactory);
+        $client->connect('using_enum');
+
+        expect($client->callTool('do', ['x' => 1], $callback))->toEqual(['ok' => true]);
+    });
+
+    test('readResource forwards onEvent callback to the transporter', function () {
+        $callback = fn (array $event) => null;
+
+        $mockTransporter = Mockery::mock(Transporter::class);
+        $mockFactory = Mockery::mock(TransporterFactory::class);
+
+        $mockTransporter->shouldReceive('request')
+            ->once()
+            ->with('resources/read', ['uri' => 'file:///x'], $callback)
+            ->andReturn(['content' => 'hi']);
+
+        $mockFactory->shouldReceive('make')->andReturn($mockTransporter);
+
+        $client = new MCPClient(config('mcp-client.servers'), $mockFactory);
+        $client->connect('using_enum');
+
+        expect($client->readResource('file:///x', $callback))->toEqual(['content' => 'hi']);
+    });
+
     test('tools throws exception when not connected', function () {
         $client = new MCPClient(config('mcp-client.servers'));
 
