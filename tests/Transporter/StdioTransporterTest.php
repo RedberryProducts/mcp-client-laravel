@@ -140,7 +140,7 @@ describe('StdioTransporter', function () {
         $transporter->shouldNotReceive('sendInitializeRequests'); // should not reach this
 
         $process = Mockery::mock(Process::class);
-        $process->shouldReceive('start')->once()->andThrow(new \RuntimeException('start failure'));
+        $process->shouldReceive('start')->once()->andThrow(new RuntimeException('start failure'));
         $process->shouldReceive('isRunning')->andReturn(false)->byDefault();
 
         $ref = new ReflectionClass(StdioTransporter::class);

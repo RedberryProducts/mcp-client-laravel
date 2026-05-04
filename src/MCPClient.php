@@ -50,23 +50,23 @@ class MCPClient implements IMCPClient
         return new Collection($tools);
     }
 
-    public function callTool(string $toolName, mixed $params = []): mixed
+    public function callTool(string $toolName, mixed $params = [], ?callable $onEvent = null): mixed
     {
         $requestParams = [
             'name' => $toolName,
             'arguments' => (object) $params,
         ];
 
-        return $this->transporter->request('tools/call', $requestParams);
+        return $this->transporter->request('tools/call', $requestParams, $onEvent);
     }
 
-    public function readResource(string $uri): mixed
+    public function readResource(string $uri, ?callable $onEvent = null): mixed
     {
         $requestParams = [
             'uri' => $uri,
         ];
 
-        return $this->transporter->request('resources/read', $requestParams);
+        return $this->transporter->request('resources/read', $requestParams, $onEvent);
     }
 
     /**

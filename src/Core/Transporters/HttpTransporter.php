@@ -5,30 +5,31 @@ namespace Redberry\MCPClient\Core\Transporters;
 use GuzzleHttp\Client;
 use GuzzleHttp\ClientInterface as GuzzleClient;
 use GuzzleHttp\Exception\GuzzleException;
+use JsonException;
+use Psr\Http\Message\ResponseInterface;
 use Redberry\MCPClient\Core\Exceptions\TransporterRequestException;
+use Redberry\MCPClient\Core\Http\SseStreamParser;
 
 class HttpTransporter implements Transporter
 {
     private GuzzleClient $client;
 
-    // Some servers don't return session ID, so we default to "1"
-    private string $sessionId = '1';
+    private ?string $sessionId = null;
 
     private bool $initialized = false;
 
-    /**
-     * @throws GuzzleException
-     */
-    public function __construct(private array $config = [])
-    {
-        $this->initializeClient();
+    public function __construct(
+        private array $config = [],
+        ?GuzzleClient $client = null,
+    ) {
+        $this->client = $client ?? new Client($this->getClientBaseConfig());
     }
 
     /**
-     * Perform the “initialize” handshake and capture the MCP session ID.
-     * Call this *once* before you start sending other RPCs.
+     * Perform the "initialize" handshake and capture the MCP session id.
+     * Called once before the first user-issued request.
      *
-     * @throws GuzzleException
+     * @throws TransporterRequestException
      */
     private function initializeSession(): void
     {
@@ -37,12 +38,22 @@ class HttpTransporter implements Transporter
         }
 
         $payload = $this->preparePayload('initialize');
-        $response = $this->client->request('POST', '', [
-            'json' => $payload,
-            'timeout' => $this->config['timeout'] ?? 30,
-        ]);
 
-        // Guzzle returns headers as arrays
+        try {
+            $response = $this->client->request('POST', '', [
+                'json' => $payload,
+                'timeout' => $this->config['timeout'] ?? 30,
+                'stream' => true,
+                'headers' => $this->buildRequestHeaders(),
+            ]);
+        } catch (GuzzleException $e) {
+            throw new TransporterRequestException(
+                "HTTP error during initialize handshake: {$e->getMessage()}",
+                (int) $e->getCode(),
+                $e
+            );
+        }
+
         $hdr = $response->getHeader('mcp-session-id');
         if (! empty($hdr)) {
             $this->sessionId = $hdr[0];
@@ -54,63 +65,100 @@ class HttpTransporter implements Transporter
     /**
      * @throws TransporterRequestException
      * @throws GuzzleException
+     * @throws JsonException
      */
-    public function request(string $action, ?array $params = null): array
+    public function request(string $action, array $params = [], ?callable $onEvent = null): array
     {
         $this->initializeSession();
         $payload = $this->preparePayload($action, $params);
 
         try {
-            // No action needed, we always send to the base URL
             $response = $this->client->request('POST', '', [
                 'json' => $payload,
                 'timeout' => $this->config['timeout'] ?? 30,
-                'headers' => [
-                    'mcp-session-id' => $this->sessionId,
-                ],
+                'stream' => true,
+                'headers' => $this->buildRequestHeaders(),
             ]);
-            $body = (string) $response->getBody();
-            $data = json_decode($body, true);
 
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                throw new TransporterRequestException('Invalid JSON response: '.json_last_error_msg());
-            }
-
-            if (isset($data['error'])) {
-                throw new TransporterRequestException("JSON-RPC error: {$data['error']['message']}",
-                    $data['error']['code']);
-            }
-
-            return $data['result'] ?? $data;
+            return $this->parseResponse($response, $onEvent);
         } catch (GuzzleException $e) {
             throw new TransporterRequestException(
                 "HTTP error for {$action}: {$e->getMessage()}",
-                $e->getCode(),
+                (int) $e->getCode(),
                 $e
             );
         }
+    }
+
+    /**
+     * @throws TransporterRequestException
+     * @throws JsonException
+     */
+    private function parseResponse(ResponseInterface $response, ?callable $onEvent): array
+    {
+        $contentType = strtolower(trim(explode(';', $response->getHeaderLine('Content-Type'))[0]));
+
+        if ($contentType === 'text/event-stream') {
+            return SseStreamParser::parse($response->getBody(), $onEvent);
+        }
+
+        $body = (string) $response->getBody();
+
+        try {
+            $data = json_decode($body, true, 512, JSON_THROW_ON_ERROR);
+        } catch (JsonException $e) {
+            throw new TransporterRequestException('Invalid JSON response: '.$e->getMessage(), 0, $e);
+        }
+
+        if (isset($data['error'])) {
+            throw new TransporterRequestException(
+                "JSON-RPC error: {$data['error']['message']}",
+                (int) ($data['error']['code'] ?? 0),
+            );
+        }
+
+        // JSON-RPC `result` may be any JSON value (null, scalar, array, object). When it isn't an
+        // array we hand back the full envelope so the typed `: array` return contract holds.
+        if (\array_key_exists('result', $data) && \is_array($data['result'])) {
+            return $data['result'];
+        }
+
+        return $data;
+    }
+
+    /**
+     * Per-request headers. Always advertises both content types so the server
+     * can content-negotiate between a single JSON response and an SSE stream.
+     */
+    private function buildRequestHeaders(): array
+    {
+        $headers = ['Accept' => 'application/json, text/event-stream'];
+
+        if ($this->sessionId !== null) {
+            $headers['mcp-session-id'] = $this->sessionId;
+        }
+
+        return $headers;
     }
 
     private function generateId(): string|int
     {
         $id = random_int(1, 1000000);
 
-        // Check if the config specifies id_type (default is 'int')
         $idType = $this->config['id_type'] ?? 'int';
 
         return $idType === 'integer' || $idType === 'int' ? $id : (string) $id;
     }
 
-    private function preparePayload(string $action, ?array $params = null)
+    private function preparePayload(string $action, array $params = []): array
     {
-        $payload = [
+        return [
             'jsonrpc' => '2.0',
             'method' => $action,
-            'params' => $params,
+            // Empty params must JSON-encode as {} (object), not [] (array), so spec-strict servers accept them.
+            'params' => $params === [] ? (object) [] : $params,
             'id' => $this->generateId(),
         ];
-
-        return $payload;
     }
 
     private function getClientBaseConfig(): array
@@ -118,38 +166,22 @@ class HttpTransporter implements Transporter
         $baseUri = $this->config['base_url'] ?? 'http://localhost/api';
         $token = $this->config['token'] ?? null;
 
-        // Start with default headers
         $headers = [
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
         ];
 
-        // Add Authorization header if token is provided
         if ($token) {
             $headers['Authorization'] = "Bearer {$token}";
         }
 
-        // Merge custom headers from config (config headers have higher priority)
-        if (isset($this->config['headers']) && is_array($this->config['headers'])) {
+        if (isset($this->config['headers']) && \is_array($this->config['headers'])) {
             $headers = array_merge($headers, $this->config['headers']);
         }
 
-        $clientConfig = [
+        return [
             'base_uri' => $baseUri,
             'headers' => $headers,
         ];
-
-        return $clientConfig;
-    }
-
-    /**
-     * @throws GuzzleException
-     */
-    private function initializeClient()
-    {
-        $clientConfig = $this->getClientBaseConfig();
-
-        // finally, instantiate the client
-        $this->client = new Client($clientConfig);
     }
 }

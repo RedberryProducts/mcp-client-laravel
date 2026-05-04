@@ -3,6 +3,7 @@
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Psr7\Response;
+use GuzzleHttp\Psr7\Utils;
 use Redberry\MCPClient\Core\Exceptions\TransporterRequestException;
 use Redberry\MCPClient\Core\Transporters\HttpTransporter;
 
@@ -282,5 +283,136 @@ describe('HttpTransporter', function () {
         $this->expectExceptionCode(502);
 
         $transporter->request('networkFailure', []);
+    });
+
+    test('client can be injected via constructor (no reflection needed)', function () {
+        $mockClient = Mockery::mock(Client::class);
+        $transporter = new HttpTransporter([], $mockClient);
+
+        $initResp = new Response(200, ['mcp-session-id' => 'sid-99', 'Content-Type' => 'application/json'], json_encode(['result' => []]));
+        $reqResp = new Response(200, ['Content-Type' => 'application/json'], json_encode(['result' => ['ok' => 1]]));
+
+        $mockClient->shouldReceive('request')->once()->with('POST', '', Mockery::type('array'))->andReturn($initResp);
+        $mockClient->shouldReceive('request')
+            ->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['headers']['mcp-session-id'] ?? null) === 'sid-99'))
+            ->andReturn($reqResp);
+
+        expect($transporter->request('ping'))->toEqual(['ok' => 1]);
+    });
+
+    test('every request advertises both content types in Accept', function () {
+        [$transporter, $mockClient] = createTransporterWithMockedSession();
+
+        $response = new Response(200, [], json_encode(['result' => ['ok' => true]]));
+        $mockClient->shouldReceive('request')
+            ->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['headers']['Accept'] ?? '') === 'application/json, text/event-stream'
+                && ($opts['stream'] ?? null) === true))
+            ->andReturn($response);
+
+        $transporter->request('act');
+    });
+
+    test('SSE response is parsed and final result returned', function () {
+        [$transporter, $mockClient] = createTransporterWithMockedSession();
+
+        $sse = <<<'SSE'
+event: jsonrpc.message
+data: {"jsonrpc":"2.0","id":1,"result":{"value":"final"}}
+
+data: [DONE]
+
+SSE;
+
+        $response = new Response(200, ['Content-Type' => 'text/event-stream'], Utils::streamFor($sse));
+        $mockClient->shouldReceive('request')
+            ->once()
+            ->with('POST', '', Mockery::type('array'))
+            ->andReturn($response);
+
+        expect($transporter->request('stream'))->toEqual(['value' => 'final']);
+    });
+
+    test('SSE Content-Type with charset suffix is recognized', function () {
+        [$transporter, $mockClient] = createTransporterWithMockedSession();
+
+        $sse = "data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"ok\":true}}\n\n";
+        $response = new Response(200, ['Content-Type' => 'text/event-stream; charset=utf-8'], Utils::streamFor($sse));
+        $mockClient->shouldReceive('request')->once()->andReturn($response);
+
+        expect($transporter->request('stream'))->toEqual(['ok' => true]);
+    });
+
+    test('onEvent callback receives every SSE event including the final result', function () {
+        [$transporter, $mockClient] = createTransporterWithMockedSession();
+
+        $sse = <<<'SSE'
+data: {"jsonrpc":"2.0","method":"progress","params":{"pct":50}}
+
+data: {"jsonrpc":"2.0","id":1,"result":{"done":true}}
+
+SSE;
+
+        $response = new Response(200, ['Content-Type' => 'text/event-stream'], Utils::streamFor($sse));
+        $mockClient->shouldReceive('request')->once()->andReturn($response);
+
+        $events = [];
+        $result = $transporter->request('stream', [], function (array $evt) use (&$events) {
+            $events[] = $evt;
+        });
+
+        expect($result)->toEqual(['done' => true])
+            ->and($events)->toHaveCount(2)
+            ->and($events[0]['method'])->toBe('progress')
+            ->and($events[1]['result']['done'])->toBeTrue();
+    });
+
+    test('connection failure during initialize is wrapped as TransporterRequestException', function () {
+        $mockClient = Mockery::mock(Client::class);
+        $transporter = new HttpTransporter([], $mockClient);
+
+        $mockClient->shouldReceive('request')
+            ->once()
+            ->andThrow(new TransferException('init refused', 503));
+
+        $this->expectException(TransporterRequestException::class);
+        $this->expectExceptionMessage('HTTP error during initialize handshake: init refused');
+        $this->expectExceptionCode(503);
+
+        $transporter->request('anything');
+    });
+
+    test('JSON response with scalar result returns the full envelope', function () {
+        [$transporter, $mockClient] = createTransporterWithMockedSession();
+
+        $response = new Response(200, ['Content-Type' => 'application/json'], json_encode(['jsonrpc' => '2.0', 'id' => 1, 'result' => 'plain-string']));
+        $mockClient->shouldReceive('request')->once()->andReturn($response);
+
+        $result = $transporter->request('act');
+
+        expect($result)->toBeArray()
+            ->and($result['result'])->toBe('plain-string');
+    });
+
+    test('initialize handshake captures mcp-session-id and reuses it', function () {
+        $mockClient = Mockery::mock(Client::class);
+        $transporter = new HttpTransporter([], $mockClient);
+
+        $initResp = new Response(200, ['mcp-session-id' => 'session-xyz', 'Content-Type' => 'application/json'], json_encode(['result' => []]));
+        $reqResp = new Response(200, ['Content-Type' => 'application/json'], json_encode(['result' => ['after' => true]]));
+
+        $mockClient->shouldReceive('request')
+            ->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ! isset($opts['headers']['mcp-session-id'])
+                && ($opts['json']['method'] ?? null) === 'initialize'))
+            ->andReturn($initResp);
+
+        $mockClient->shouldReceive('request')
+            ->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['headers']['mcp-session-id'] ?? null) === 'session-xyz'))
+            ->andReturn($reqResp);
+
+        expect($transporter->request('after_init'))->toEqual(['after' => true]);
     });
 });
