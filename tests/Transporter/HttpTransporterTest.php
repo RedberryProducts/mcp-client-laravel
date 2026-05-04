@@ -5,6 +5,7 @@ use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Psr7\Response;
 use GuzzleHttp\Psr7\Utils;
 use Redberry\MCPClient\Core\Exceptions\TransporterRequestException;
+use Redberry\MCPClient\Core\Mcp;
 use Redberry\MCPClient\Core\Transporters\HttpTransporter;
 
 afterEach(function () {
@@ -458,7 +459,7 @@ SSE;
 
         $transporter->request('ping');
 
-        expect($captured['params']['protocolVersion'])->toBe(\Redberry\MCPClient\Core\Mcp::PROTOCOL_VERSION)
+        expect($captured['params']['protocolVersion'])->toBe(Mcp::PROTOCOL_VERSION)
             ->and($captured['params']['capabilities'])->toBeInstanceOf(stdClass::class)
             ->and($captured['params']['clientInfo']['name'])->toBe('mcp-client-laravel')
             ->and($captured['params']['clientInfo']['version'])->toBeString()

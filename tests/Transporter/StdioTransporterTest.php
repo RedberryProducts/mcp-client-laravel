@@ -2,6 +2,7 @@
 
 use Redberry\MCPClient\Core\Exceptions\ServerConfigurationException;
 use Redberry\MCPClient\Core\Exceptions\TransporterRequestException;
+use Redberry\MCPClient\Core\Mcp;
 use Redberry\MCPClient\Core\Transporters\StdioTransporter;
 use Symfony\Component\Process\InputStream;
 use Symfony\Component\Process\Process;
@@ -363,7 +364,7 @@ describe('StdioTransporter', function () {
 
         expect($initialize['method'])->toBe('initialize')
             ->and($initialize['id'])->toBe('init')
-            ->and($initialize['params']['protocolVersion'])->toBe(\Redberry\MCPClient\Core\Mcp::PROTOCOL_VERSION)
+            ->and($initialize['params']['protocolVersion'])->toBe(Mcp::PROTOCOL_VERSION)
             ->and($initialize['params']['clientInfo']['name'])->toBe('mcp-client-laravel')
             ->and($initialize['params']['clientInfo']['version'])->toBeString()
             ->and($initialize['params']['clientInfo']['version'])->not->toBe('0.1.0')
