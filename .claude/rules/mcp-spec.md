@@ -5,7 +5,7 @@ This package targets the Model Context Protocol spec. Treat the spec as authorit
 ## Pinned spec version
 
 - **HTTP transport:** [`2025-03-26` Streamable HTTP](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http). This is the only HTTP shape we implement.
-- **STDIO transport:** Currently uses `protocolVersion: '2024-11-05'` in `StdioTransporter::PROTOCOL_VERSION`. ROADMAP P0 promotes `PROTOCOL_VERSION` to a single shared location and aligns both transporters to `2025-03-26`. Do not introduce a third version.
+- **STDIO transport:** Both transporters reference `Redberry\MCPClient\Core\Mcp::PROTOCOL_VERSION` (`2025-03-26`). Don't introduce a per-class version constant.
 
 When you reach for the spec, link the section anchor in your PR description so reviewers can verify against the same revision you used.
 
@@ -51,7 +51,7 @@ Required for **both** transports before any user-issued request. Two messages, i
 
 - Strict-spec servers (Anthropic's reference servers, the official TS reference) reject an `initialize` payload missing any of `protocolVersion`, `capabilities`, `clientInfo`.
 - The HTTP transport additionally captures `mcp-session-id` from the `initialize` response headers and replays it on every subsequent request as a header.
-- `clientInfo.version` must come from `\Composer\InstalledVersions::getPrettyVersion('redberry/mcp-client-laravel')`, not a hardcoded string.
+- Source `clientInfo` from `Redberry\MCPClient\Core\Mcp::clientInfo()` — it already handles the composer version lookup.
 
 ## Streamable HTTP specifics
 

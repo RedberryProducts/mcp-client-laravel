@@ -2,6 +2,7 @@
 
 use Redberry\MCPClient\Core\Exceptions\ServerConfigurationException;
 use Redberry\MCPClient\Core\Exceptions\TransporterRequestException;
+use Redberry\MCPClient\Core\Mcp;
 use Redberry\MCPClient\Core\Transporters\StdioTransporter;
 use Symfony\Component\Process\InputStream;
 use Symfony\Component\Process\Process;
@@ -332,6 +333,43 @@ describe('StdioTransporter', function () {
         $result = $method->invoke($transporter, $id);
 
         expect($result)->toBe(['x' => 1]);
+    });
+
+    it('sendInitializeRequests uses the shared protocol version and notifications/initialized method', function () {
+        $transporter = Mockery::mock(StdioTransporter::class, [['command' => ['echo', 'hi']]])->makePartial();
+        $transporter->shouldAllowMockingProtectedMethods();
+
+        $captured = [];
+
+        $inputStream = Mockery::mock(InputStream::class);
+        $inputStream->shouldReceive('write')
+            ->twice()
+            ->withArgs(function ($arg) use (&$captured) {
+                $captured[] = json_decode(trim($arg), true);
+
+                return true;
+            });
+        $inputStream->shouldReceive('close')->byDefault();
+
+        $ref = new ReflectionClass(StdioTransporter::class);
+        $streamProp = $ref->getProperty('inputStream');
+        $streamProp->setAccessible(true);
+        $streamProp->setValue($transporter, $inputStream);
+
+        $method = $ref->getMethod('sendInitializeRequests');
+        $method->setAccessible(true);
+        $method->invoke($transporter);
+
+        [$initialize, $notification] = $captured;
+
+        expect($initialize['method'])->toBe('initialize')
+            ->and($initialize['id'])->toBe('init')
+            ->and($initialize['params']['protocolVersion'])->toBe(Mcp::PROTOCOL_VERSION)
+            ->and($initialize['params']['clientInfo']['name'])->toBe('mcp-client-laravel')
+            ->and($initialize['params']['clientInfo']['version'])->toBeString()
+            ->and($initialize['params']['clientInfo']['version'])->not->toBe('')
+            ->and($notification['method'])->toBe('notifications/initialized')
+            ->and(array_key_exists('id', $notification))->toBeFalse();
     });
 
     it('cleanup stops running process and unsets properties', function () {

@@ -6,7 +6,7 @@ All file paths below are relative to the package root.
 
 ---
 
-## P0 — Spec-correct `initialize` handshake for `HttpTransporter`
+## ~~P0 — Spec-correct `initialize` handshake for `HttpTransporter`~~ ✅ Done
 
 **Problem.** `HttpTransporter::initializeSession()` (`src/Core/Transporters/HttpTransporter.php`, lines 34–63) currently sends a bare `initialize` payload (just `method`, empty `params`). The MCP spec requires `protocolVersion`, `capabilities`, and `clientInfo`, plus a follow-up `notifications/initialized` notification. Strict-spec servers (the official TS reference, Anthropic's MCP servers, others) will reject what we send today. STDIO already does this correctly — see `StdioTransporter::sendInitializeRequests()` (`src/Core/Transporters/StdioTransporter.php`, lines 153–185) for the exact shape.
 

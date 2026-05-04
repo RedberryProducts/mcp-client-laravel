@@ -14,8 +14,8 @@ When adding a new transport (e.g. WebSocket) or modifying `HttpTransporter` / `S
 
 6. Run the MCP `initialize` handshake exactly once per instance, lazily on the first user request. Don't run it in the constructor.
 7. The initialize payload must include `protocolVersion`, `capabilities` (empty object `(object)[]` is fine), and `clientInfo` (`name`, `version`). After a successful `initialize`, send a `notifications/initialized` notification (no `id` field — it's not a request). See `mcp-spec.md` for the exact shape.
-8. Reference a single shared `PROTOCOL_VERSION` constant — once it's promoted to the `Transporter` interface or a `Core/Mcp.php` value object (per ROADMAP P0), use it. Don't redeclare a per-class constant.
-9. `clientInfo.version` must be sourced from the package's installed version, not hardcoded. Use `\Composer\InstalledVersions::getPrettyVersion('redberry/mcp-client-laravel')` with a string fallback.
+8. Reference `Redberry\MCPClient\Core\Mcp::PROTOCOL_VERSION` for the protocol version. Don't redeclare a per-class constant.
+9. `clientInfo` (both `name` and `version`) must come from `Redberry\MCPClient\Core\Mcp::clientInfo()`, which already handles version resolution and the missing-package fallback.
 
 ## Request IDs
 
