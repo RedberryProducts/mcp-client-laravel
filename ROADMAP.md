@@ -99,4 +99,3 @@ P0 → P1 → P2 → P3 → P4 → P5 → P6. P0–P3 should each be its own PR;
 
 - Long-lived `GET /` SSE channel for unsolicited server→client notifications.
 - `Last-Event-ID` resumability.
-- The Pint config drift between fresh-clone and symlinked-workspace runs (separate investigation).
