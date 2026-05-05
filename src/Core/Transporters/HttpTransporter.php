@@ -182,8 +182,9 @@ class HttpTransporter implements Transporter
         }
 
         if (isset($data['error'])) {
+            $message = $data['error']['message'] ?? 'Unknown JSON-RPC error';
             throw new TransporterRequestException(
-                "JSON-RPC error: {$data['error']['message']}",
+                "JSON-RPC error: {$message}",
                 (int) ($data['error']['code'] ?? 0),
             );
         }
