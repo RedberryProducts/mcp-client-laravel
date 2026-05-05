@@ -90,7 +90,7 @@ Pass JSON-RPC error codes through to the `TransporterRequestException` code unch
 
 ## Out of scope
 
-Don't start work on these without explicit confirmation. They're documented as out-of-scope in [ROADMAP.md:98–102](../../ROADMAP.md):
+Don't start work on these without explicit confirmation. They're documented as out-of-scope in [ROADMAP.md "Out of scope"](../../ROADMAP.md#out-of-scope):
 
 - **Long-lived `GET /` SSE channel** for unsolicited server→client notifications. We are request/response only.
 - **`Last-Event-ID` resumability** on Streamable HTTP. We don't checkpoint or resume.

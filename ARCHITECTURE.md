@@ -327,7 +327,7 @@ See [`.claude/rules/transporters.md`](.claude/rules/transporters.md) for the ful
 
 ## What's intentionally not here
 
-Documented in [ROADMAP.md:98–102](ROADMAP.md):
+Documented in [ROADMAP.md "Out of scope"](ROADMAP.md#out-of-scope):
 
 - Long-lived `GET /` SSE channel for unsolicited server→client notifications.
 - `Last-Event-ID` resumability on Streamable HTTP.
