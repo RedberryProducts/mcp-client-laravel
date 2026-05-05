@@ -63,6 +63,8 @@ All file paths below are relative to the package root.
 
 ## ~~P4 — Cleanup: migrate reflection-based test setup~~ ✅ Done
 
+**Resolved in [PR #42](https://github.com/RedberryProducts/mcp-client-laravel/pull/42).** The reflection-based `createTransporterWithMockedSession()` helper was replaced with `setUpInitializedTransporter()`, which uses constructor injection and primes the `initialize` + `notifications/initialized` handshake via Mockery. The Problem/Task/Acceptance text below describes the pre-refactor state and references file locations that no longer exist.
+
 **Problem.** `createTransporterWithMockedSession()` in `tests/Transporter/HttpTransporterTest.php` (lines 16–38) uses `ReflectionClass` to poke private state. The new constructor-injection pattern from the same file (`client can be injected via constructor (no reflection needed)`, lines 288–302) is much cleaner.
 
 **Task.** Migrate every test that calls `createTransporterWithMockedSession()` to use constructor injection plus a real first call that primes the `initialize` exchange (you can add a tiny helper that returns `[$transporter, $mockClient]` and stubs the initialize POST). Delete the old helper. No behavior changes — just a refactor.
