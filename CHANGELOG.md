@@ -6,6 +6,7 @@ All notable changes to `mcp-client-laravel` will be documented in this file.
 
 ### Added
 
+- Laravel 13 and PHP 8.5 support. `composer.json` now allows `laravel/framework: ^10.0||^11.0||^12.0||^13.0` (Laravel 10 stays installable in constraints during user transitions but is no longer covered by CI), `php: ^8.3||^8.4||^8.5`, and `orchestra/testbench: ^8.22||^9.0||^10.0||^11.0`. The CI test matrix now runs PHP 8.3/8.4/8.5 against Laravel 11/12/13 (each with its matching Testbench major), `prefer-lowest` and `prefer-stable`. PHPStan, Pint, Pest, and pest-plugin-laravel constraints widened to track the latest majors (Pest 4, pest-plugin-laravel 4, Larastan 3-only).
 - HTTP transporter now implements MCP's Streamable HTTP transport (2025-03-26): every request advertises `Accept: application/json, text/event-stream` and content-negotiates with the server, parsing either a single JSON response or an SSE stream of JSON-RPC messages.
 - New `SseStreamParser` helper for decoding `text/event-stream` responses.
 - Optional `?callable $onEvent` parameter on `MCPClient::callTool()` and `MCPClient::readResource()` (and on the underlying `Transporter::request()` interface) for observing intermediate streamed events.
