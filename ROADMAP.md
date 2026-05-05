@@ -73,7 +73,7 @@ All file paths below are relative to the package root.
 
 ---
 
-## P5 — Cleanup: switch HTTP request IDs to an incrementing counter
+## ~~P5 — Cleanup: switch HTTP request IDs to an incrementing counter~~ ✅ Done
 
 **Problem.** `HttpTransporter::generateId()` (`src/Core/Transporters/HttpTransporter.php`, lines 144–151) uses `random_int(1, 1_000_000)`. Birthday-paradox collisions become non-trivial over a long-lived session (~1-in-1000 chance after 1k requests). STDIO uses `++$this->requestId`, which is the right pattern.
 

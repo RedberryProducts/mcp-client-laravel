@@ -24,6 +24,8 @@ class HttpTransporter implements Transporter
 
     private bool $initialized = false;
 
+    private int $requestId = 0;
+
     public function __construct(
         private array $config = [],
         ?GuzzleClient $client = null,
@@ -226,9 +228,17 @@ class HttpTransporter implements Transporter
         return $configured === null ? null : (float) $configured;
     }
 
+    /**
+     * JSON-RPC request id source. A per-instance incrementing counter avoids
+     * the birthday-paradox collisions a random_int(1, 1_000_000) source would
+     * see over a long-lived session (~1-in-1000 chance after 1k requests).
+     * The counter is intentionally not reset on session re-initialization —
+     * each MCP session has its own id namespace on the server, so monotonic
+     * client-side ids stay safe across re-handshakes within one instance.
+     */
     private function generateId(): string|int
     {
-        $id = random_int(1, 1000000);
+        $id = ++$this->requestId;
 
         $idType = $this->config['id_type'] ?? 'int';
 
@@ -250,7 +260,10 @@ class HttpTransporter implements Transporter
     {
         return [
             'jsonrpc' => '2.0',
-            'id' => $this->generateId(),
+            // Literal 'init' (matching STDIO) so the initialize handshake — and any
+            // re-handshake after session loss — never burns a slot of the user-request
+            // counter. Keeps user-request ids 1, 2, 3, … starting from a fresh instance.
+            'id' => 'init',
             'method' => 'initialize',
             'params' => [
                 'protocolVersion' => Mcp::PROTOCOL_VERSION,
