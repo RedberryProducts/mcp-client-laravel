@@ -1,6 +1,6 @@
 # Roadmap
 
-Follow-up work tracked after [PR #33](https://github.com/RedberryProducts/mcp-client-laravel/pull/33) (Streamable HTTP transport). All P0–P6 items have shipped.
+Follow-up work tracked after [PR #33](https://github.com/RedberryProducts/mcp-client-laravel/pull/33) (Streamable HTTP transport). All P0–P7 items have shipped.
 
 ## Completed
 
@@ -11,6 +11,7 @@ Follow-up work tracked after [PR #33](https://github.com/RedberryProducts/mcp-cl
 - ~~**P4** — Cleanup: migrate reflection-based test setup~~ — [PR #42](https://github.com/RedberryProducts/mcp-client-laravel/pull/42)
 - ~~**P5** — Cleanup: switch HTTP request IDs to an incrementing counter~~ — [PR #43](https://github.com/RedberryProducts/mcp-client-laravel/pull/43)
 - ~~**P6** — Document `$onEvent` is a no-op on STDIO~~ — [PR #43](https://github.com/RedberryProducts/mcp-client-laravel/pull/43)
+- ~~**P7** — `MCPClient` surface: singleton DI, contract alias, immutable `connect`, missing guards~~ — [#48](https://github.com/RedberryProducts/mcp-client-laravel/issues/48)
 
 The original problem statements, tasks, and acceptance criteria for each item are preserved in this file's git history.
 
