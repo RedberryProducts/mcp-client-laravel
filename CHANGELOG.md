@@ -18,6 +18,8 @@ All notable changes to `mcp-client-laravel` will be documented in this file.
 - `composer.json` now explicitly requires `guzzlehttp/guzzle` and `psr/http-message`, which the HTTP transporter has always relied on transitively.
 - Both transporters now report `protocolVersion: 2025-03-26` and source `clientInfo.version` from the installed composer package version (was hardcoded `0.1.0` on STDIO). Shared in a new `Redberry\MCPClient\Core\Mcp` value class.
 - HTTP transporter tests now exercise the real `initialize` + `notifications/initialized` handshake via constructor injection instead of poking private state with reflection. No production behavior change.
+- HTTP transporter JSON-RPC request ids now come from a per-instance incrementing counter (matching STDIO) instead of `random_int(1, 1_000_000)`. Eliminates birthday-paradox collision risk from random id selection on long-lived sessions. The `id_type` config (`int` vs `string`) still controls the cast. The `initialize` handshake now uses the literal id `"init"` so a re-handshake after session loss never burns a slot of the user-request counter.
+- README clarifies that the optional `$onEvent` callback on `callTool()` / `readResource()` is a no-op under the STDIO transport (and under HTTP servers that reply with a single JSON message). It is always safe to pass; you do not need to branch on the active transport.
 
 ### Fixed
 

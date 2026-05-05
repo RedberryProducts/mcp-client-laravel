@@ -183,6 +183,8 @@ $result = $client->callTool('long_running_tool', $args, function (array $event) 
 
 The callback is invoked zero times if the server returns a single JSON response, so it is safe to pass unconditionally.
 
+> **Transport note.** Streaming events are an HTTP-only concept (specifically, MCP's Streamable HTTP `text/event-stream` responses). When the active server is configured with `type: stdio`, or when an HTTP server replies with a single JSON message, `$onEvent` fires zero times. You do not need to branch on the active transport — passing `$onEvent` is always safe; it is simply a no-op when the server isn't streaming.
+
 ### Read Resources
 
 The `readResource` method is used to retrieve the resource by the `uri`. It accepts the same optional `$onEvent` callback as `callTool`.

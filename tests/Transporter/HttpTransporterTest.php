@@ -64,26 +64,22 @@ describe('HttpTransporter', function () {
         expect((is_string($payload['id']) || is_int($payload['id'])) && preg_match('/^\d+$/', (string) $payload['id']))->toBeTrue();
     });
 
-    test('generateId returns numeric within range', function () {
+    test('generateId starts at 1 and increments per call', function () {
         $transporter = new HttpTransporter;
         $gen = new ReflectionMethod(HttpTransporter::class, 'generateId');
         $gen->setAccessible(true);
 
-        $id = $gen->invoke($transporter);
-
-        expect(is_string($id) || is_int($id))->toBeTrue();
-        expect(preg_match('/^\d+$/', (string) $id) === 1 && ((int) $id >= 1 && (int) $id <= 1000000))->toBeTrue();
+        expect($gen->invoke($transporter))->toBe(1)
+            ->and($gen->invoke($transporter))->toBe(2)
+            ->and($gen->invoke($transporter))->toBe(3);
     });
 
-    test('generateId returns integer when id_type is integer', function () {
+    test('generateId returns int when id_type is integer', function () {
         $transporter = new HttpTransporter(['id_type' => 'integer']);
         $gen = new ReflectionMethod(HttpTransporter::class, 'generateId');
         $gen->setAccessible(true);
 
-        $id = $gen->invoke($transporter);
-
-        expect(is_int($id))->toBeTrue();
-        expect($id >= 1 && $id <= 1000000)->toBeTrue();
+        expect($gen->invoke($transporter))->toBe(1);
     });
 
     test('generateId returns int by default', function () {
@@ -91,9 +87,16 @@ describe('HttpTransporter', function () {
         $gen = new ReflectionMethod(HttpTransporter::class, 'generateId');
         $gen->setAccessible(true);
 
-        $id = $gen->invoke($transporter);
+        expect($gen->invoke($transporter))->toBeInt();
+    });
 
-        expect(is_int($id))->toBeTrue();
+    test('generateId returns string when id_type is string', function () {
+        $transporter = new HttpTransporter(['id_type' => 'string']);
+        $gen = new ReflectionMethod(HttpTransporter::class, 'generateId');
+        $gen->setAccessible(true);
+
+        expect($gen->invoke($transporter))->toBe('1')
+            ->and($gen->invoke($transporter))->toBe('2');
     });
 
     test('getClientBaseConfig has default values', function () {
@@ -541,6 +544,78 @@ SSE;
         expect($captured['json'])->not->toHaveKey('id')
             ->and($captured['headers']['mcp-session-id'])->toBe('sid-42')
             ->and($captured['headers']['Accept'])->toBe('application/json, text/event-stream');
+    });
+
+    test('initialize handshake uses the literal id "init", leaving the counter at 0', function () {
+        $mockClient = Mockery::mock(Client::class);
+        $transporter = new HttpTransporter([], $mockClient);
+
+        $initJson = null;
+        $userJson = null;
+        $initResp = new Response(200, ['mcp-session-id' => 'sid', 'Content-Type' => 'application/json'], json_encode(['result' => []]));
+        $notifyResp = new Response(202, [], '');
+        $userResp = new Response(200, ['Content-Type' => 'application/json'], json_encode(['result' => []]));
+
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(function ($opts) use (&$initJson) {
+                if (($opts['json']['method'] ?? null) !== 'initialize') {
+                    return false;
+                }
+                $initJson = $opts['json'];
+
+                return true;
+            }))
+            ->andReturn($initResp);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'notifications/initialized'))
+            ->andReturn($notifyResp);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(function ($opts) use (&$userJson) {
+                if (($opts['json']['method'] ?? null) !== 'first') {
+                    return false;
+                }
+                $userJson = $opts['json'];
+
+                return true;
+            }))
+            ->andReturn($userResp);
+
+        $transporter->request('first');
+
+        expect($initJson['id'])->toBe('init')
+            ->and($userJson['id'])->toBe(1);
+    });
+
+    test('two sequential user requests produce ids 1 and 2', function () {
+        $mockClient = Mockery::mock(Client::class);
+        $transporter = new HttpTransporter([], $mockClient);
+
+        $ids = [];
+        $initResp = new Response(200, ['mcp-session-id' => 'sid', 'Content-Type' => 'application/json'], json_encode(['result' => []]));
+        $notifyResp = new Response(202, [], '');
+        $userResp = new Response(200, ['Content-Type' => 'application/json'], json_encode(['result' => []]));
+
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'initialize'))
+            ->andReturn($initResp);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'notifications/initialized'))
+            ->andReturn($notifyResp);
+        $mockClient->shouldReceive('request')->twice()
+            ->with('POST', '', Mockery::on(function ($opts) use (&$ids) {
+                if (($opts['json']['method'] ?? null) !== 'work') {
+                    return false;
+                }
+                $ids[] = $opts['json']['id'];
+
+                return true;
+            }))
+            ->andReturn($userResp);
+
+        $transporter->request('work');
+        $transporter->request('work');
+
+        expect($ids)->toBe([1, 2]);
     });
 
     test('handshake POSTs occur in the order initialize → notifications/initialized → user request', function () {

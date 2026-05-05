@@ -73,9 +73,9 @@ All file paths below are relative to the package root.
 
 ---
 
-## P5 — Cleanup: switch HTTP request IDs to an incrementing counter
+## ~~P5 — Cleanup: switch HTTP request IDs to an incrementing counter~~ ✅ Done
 
-**Problem.** `HttpTransporter::generateId()` (`src/Core/Transporters/HttpTransporter.php`, lines 144–151) uses `random_int(1, 1_000_000)`. Birthday-paradox collisions become non-trivial over a long-lived session (~1-in-1000 chance after 1k requests). STDIO uses `++$this->requestId`, which is the right pattern.
+**Problem.** `HttpTransporter::generateId()` (`src/Core/Transporters/HttpTransporter.php`, lines 144–151) uses `random_int(1, 1_000_000)`. Birthday-paradox collisions become non-trivial over a long-lived session (the chance of at least one collision is already ~39% after 1k requests). STDIO uses `++$this->requestId`, which is the right pattern.
 
 **Task.** Replace with a per-instance incrementing counter, matching STDIO. Keep the `id_type` config (int vs string) — just change the source of the number. Update tests accordingly.
 
@@ -83,7 +83,7 @@ All file paths below are relative to the package root.
 
 ---
 
-## P6 — Document `$onEvent` is a no-op on STDIO
+## ~~P6 — Document `$onEvent` is a no-op on STDIO~~ ✅ Done
 
 **Problem.** `StdioTransporter::request()` (`src/Core/Transporters/StdioTransporter.php`, line 80) accepts `$onEvent` and silently ignores it. The interface docblock mentions this, but a README user reading the streaming-callback example may not realize it depends on the active transport.
 
