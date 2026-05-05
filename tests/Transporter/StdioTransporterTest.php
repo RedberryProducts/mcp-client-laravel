@@ -424,6 +424,54 @@ describe('StdioTransporter', function () {
         $method->invoke($transporter, 'never-arrives');
     });
 
+    it('preserves fractional request_timeout values instead of truncating to int', function () {
+        $config = ['command' => ['echo', 'hi'], 'request_timeout' => 0.5, 'env' => []];
+        $transporter = Mockery::mock(StdioTransporter::class, [$config])->makePartial();
+        $transporter->shouldAllowMockingProtectedMethods();
+
+        $process = Mockery::mock(Process::class);
+        $process->shouldReceive('getIncrementalOutput')->andReturn('');
+        $process->shouldReceive('isRunning')->byDefault()->andReturn(false);
+        $process->shouldReceive('stop')->byDefault();
+
+        $ref = new ReflectionClass(StdioTransporter::class);
+        $procProp = $ref->getProperty('process');
+        $procProp->setAccessible(true);
+        $procProp->setValue($transporter, $process);
+
+        $method = $ref->getMethod('waitForResponse');
+        $method->setAccessible(true);
+
+        $this->expectException(TransporterRequestException::class);
+        $this->expectExceptionMessageMatches('/Timeout after 0\.5 seconds/');
+
+        $method->invoke($transporter, 'never-arrives');
+    });
+
+    it('treats request_timeout=null as unset and falls through to legacy timeout', function () {
+        $config = ['command' => ['echo', 'hi'], 'request_timeout' => null, 'timeout' => 1, 'env' => []];
+        $transporter = Mockery::mock(StdioTransporter::class, [$config])->makePartial();
+        $transporter->shouldAllowMockingProtectedMethods();
+
+        $process = Mockery::mock(Process::class);
+        $process->shouldReceive('getIncrementalOutput')->andReturn('');
+        $process->shouldReceive('isRunning')->byDefault()->andReturn(false);
+        $process->shouldReceive('stop')->byDefault();
+
+        $ref = new ReflectionClass(StdioTransporter::class);
+        $procProp = $ref->getProperty('process');
+        $procProp->setAccessible(true);
+        $procProp->setValue($transporter, $process);
+
+        $method = $ref->getMethod('waitForResponse');
+        $method->setAccessible(true);
+
+        $this->expectException(TransporterRequestException::class);
+        $this->expectExceptionMessageMatches('/Timeout after 1 seconds/');
+
+        $method->invoke($transporter, 'never-arrives');
+    });
+
     it('process_timeout defaults to null and does not fall back to legacy timeout', function () {
         $transporter = new StdioTransporter(['command' => ['echo', 'hi'], 'timeout' => 30]);
 

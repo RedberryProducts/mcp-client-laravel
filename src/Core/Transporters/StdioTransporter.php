@@ -248,7 +248,7 @@ class StdioTransporter implements Transporter
 
         throw new TransporterRequestException(
             sprintf(
-                'Timeout after %d seconds waiting for response with id "%s".',
+                'Timeout after %s seconds waiting for response with id "%s".',
                 $timeout,
                 $id
             )
@@ -268,18 +268,21 @@ class StdioTransporter implements Transporter
      * Resolves the per-request wait timeout in seconds.
      *
      * Order: explicit `request_timeout` → legacy `timeout` → default (30s).
+     * A present-but-`null` value is treated as unset (falls through to the next
+     * source) rather than `0` seconds, which would be an instant timeout.
+     * Returned as a float so `request_timeout: 1.5` keeps working.
      */
-    private function resolveRequestTimeout(): int
+    private function resolveRequestTimeout(): float
     {
-        if (array_key_exists('request_timeout', $this->config)) {
-            return (int) $this->config['request_timeout'];
+        if (array_key_exists('request_timeout', $this->config) && $this->config['request_timeout'] !== null) {
+            return (float) $this->config['request_timeout'];
         }
 
-        if (array_key_exists('timeout', $this->config)) {
-            return (int) $this->config['timeout'];
+        if (array_key_exists('timeout', $this->config) && $this->config['timeout'] !== null) {
+            return (float) $this->config['timeout'];
         }
 
-        return self::DEFAULT_REQUEST_TIMEOUT;
+        return (float) self::DEFAULT_REQUEST_TIMEOUT;
     }
 
     /**
@@ -326,6 +329,6 @@ class StdioTransporter implements Transporter
             return null;
         }
 
-        return array_merge(getenv(), $userEnv);
+        return array_merge(getenv() ?: [], $userEnv);
     }
 }
