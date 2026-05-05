@@ -38,8 +38,12 @@ describe('StdioTransporter', function () {
     });
 
     it('throws exception on startup failure', function () {
+        $command = PHP_OS_FAMILY === 'Windows'
+            ? ['cmd', '/c', 'exit', '1']
+            : ['false'];
+
         $transporter = new StdioTransporter([
-            'command' => ['false'],
+            'command' => $command,
         ]);
 
         $this->expectException(TransporterRequestException::class);
