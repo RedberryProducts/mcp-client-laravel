@@ -2,7 +2,9 @@
 
 All notable changes to `mcp-client-laravel` will be documented in this file.
 
-## Unreleased
+## v2.0.0 - 2026-05-05
+
+This release contains breaking changes. See [UPGRADE.md](UPGRADE.md) for the `1.x → 2.x` migration guide.
 
 ### Added
 

@@ -40,8 +40,8 @@ The user-facing API lives in `src/MCPClient.php` and is intentionally small:
 | `connect(string $serverName)` | Picks a server config out of the map and instantiates the transporter via `TransporterFactory` | — |
 | `tools(): Collection` | `tools/list` JSON-RPC call | No |
 | `resources(): Collection` | `resources/list` JSON-RPC call | No |
-| `callTool(string $name, mixed $params, ?callable $onEvent): mixed` | `tools/call` JSON-RPC call, forwards `$onEvent` | Yes (when transport supports it) |
-| `readResource(string $uri, ?callable $onEvent): mixed` | `resources/read` JSON-RPC call, forwards `$onEvent` | Yes (when transport supports it) |
+| `callTool(string $name, mixed $params, ?callable $onEvent): array` | `tools/call` JSON-RPC call, forwards `$onEvent` | Yes (when transport supports it) |
+| `readResource(string $uri, ?callable $onEvent): array` | `resources/read` JSON-RPC call, forwards `$onEvent` | Yes (when transport supports it) |
 
 The contract for both `MCPClient` and the underlying `Transporter` lives in `src/Contracts/MCPClient.php` and `src/Core/Transporters/Transporter.php` — keep both interfaces narrow.
 
@@ -131,14 +131,15 @@ first request()
 - `text/event-stream` → `SseStreamParser::parse($body, $onEvent)`. The parser drives `$onEvent` and returns the result-bearing payload.
 - anything else → `json_decode` → return `$data['result']` if it's an array, else the whole envelope.
 
-JSON-RPC errors (`isset($data['error'])`) throw `TransporterRequestException` carrying the spec error code as the exception code.
+JSON-RPC errors (`isset($data['error'])`) throw `TransporterRequestException` carrying the spec error code as the exception code. The `message` field is read defensively (`$data['error']['message'] ?? 'Unknown JSON-RPC error'`) so spec-compliant servers that omit it don't trigger PHP warnings.
 
-### Known gaps (tracked in ROADMAP)
+### Session loss recovery
 
-- `initializeSession()` sends a bare `initialize` payload missing `protocolVersion` / `capabilities` / `clientInfo`, and never sends the follow-up `notifications/initialized`. Strict-spec servers reject this. (P0)
-- `random_int` request id generator can collide over a long-lived session. Should be an incrementing counter like STDIO. (P5)
-- No SSE read-timeout — a server that holds the connection open without sending parks the worker. (P2)
-- No session-loss recovery — a 404 from the server keeps replaying the stale session id. (P3)
+A request to an active session that returns HTTP `404` is the MCP spec signal that the session has expired or been evicted. `HttpTransporter` catches this case, clears its session id and `$initialized` flag, replays the `initialize` handshake, and retries the original request. The number of retries is bounded by `max_session_retries` (default `1`); set it to `0` to disable.
+
+### SSE read timeout
+
+The HTTP transport advertises `Accept: application/json, text/event-stream` on every request. When the server replies with an event stream, `SseStreamParser::parse()` enforces a maximum gap between chunks via `read_timeout` (default `60` seconds). The clock resets on every received chunk, so a tool that emits progress events stays alive indefinitely; only a wedged stream aborts.
 
 ---
 
@@ -158,11 +159,11 @@ first request()
     ├─ start():
     │   initializeProcess()           ◄── builds Process with InputStream
     │   $process->start()
-    │   usleep(startup_delay)         ◄── give server time to boot, default 50ms
+    │   usleep(startup_delay)               ◄── give server time to boot, default 100ms
     │   isRunning()? else handleStartupFailure()
     │   sendInitializeRequests():
     │     write {initialize} \n
-    │     write {initialized} \n      ◄── note: spec name is notifications/initialized
+    │     write {notifications/initialized} \n
     │
     └─ user request
         write {method, params, id: ++$requestId} \n
@@ -171,9 +172,8 @@ first request()
             buffer .= $process->getIncrementalOutput()
             for each newline-terminated line in buffer:
               json_decode; if id matches, return result (or throw on error)
-            usleep(poll_interval), default 10ms
-            timeout after $config['timeout']s
-            (default 3s — short on purpose)
+            usleep(poll_interval), default 20ms
+            timeout after request_timeout (default 30s)
     ▼
 __destruct() / close()
     inputStream->close()
@@ -181,15 +181,17 @@ __destruct() / close()
 ```
 
 - **Why lazy start.** Same reasoning as HTTP — constructing shouldn't fork a process.
-- **Why a startup delay.** Many MCP servers (especially `npx`-launched Node ones) take a moment to be ready to read from stdin. Without the delay, the first `initialize` write can race the server's readline loop. 50ms is a deliberately small default; users override via `startup_delay` ms.
+- **Why a startup delay.** Many MCP servers (especially `npx`-launched Node ones) take a moment to be ready to read from stdin. Without the delay, the first `initialize` write can race the server's readline loop. The default is `100`ms; users override via `startup_delay`.
+- **Why two timeouts.** `request_timeout` bounds a single `waitForResponse()` cycle; `process_timeout` is Symfony Process's whole-subprocess kill timer. Bundling them under one key meant queue workers issuing many tool calls over the same subprocess were killed mid-flight after one `timeout` worth of process life. They are now decoupled, with `process_timeout` defaulting to `null` (kill timer disabled).
+- **Why parent-env inheritance.** Forwarding only `PATH` silently broke `npx`/`node`, which need `HOME` to find npm caches and `NODE_OPTIONS`/`NPM_CONFIG_*` for many MCP servers. The transport now passes `null` to `Process` (clean inheritance) when no `env` is supplied, and merges user keys on top of `getenv()` when one is. `inherit_env: false` opts into a sealed env.
 - **Why polling instead of blocking reads.** Symfony Process's `getIncrementalOutput()` is non-blocking and drains both buffered stdout and any new bytes since the last call. We poll because the server can interleave notifications between requests, and we need to walk every line looking for our matching `id`.
 - **Why a per-instance counter for ids.** `++$this->requestId` is collision-free for the lifetime of the instance. No randomness, no `id_type` wobble — the cast to string is the only branch.
 
 ### Asymmetry with HTTP
 
-- `$onEvent` is currently **a no-op on STDIO** — the contract accepts it, but `waitForResponse()` only matches against the `id` and returns the result. We don't decode and surface intermediate notifications today. ROADMAP P6 tracks documenting this clearly in the README.
-- STDIO uses `protocolVersion: '2024-11-05'` while the HTTP target is `2025-03-26`. ROADMAP P0 promotes the constant to one shared place and aligns both.
-- STDIO hardcodes `clientInfo.version` to `'0.1.0'`. Should be sourced from `\Composer\InstalledVersions` (P0).
+`$onEvent` is **a no-op on STDIO**. The contract accepts the parameter so callers can pass it unconditionally, but `waitForResponse()` only matches against the JSON-RPC `id` and returns the matching result; intermediate notifications are not decoded or surfaced. The `Transporter::request()` docblock and the README both spell this out for callers.
+
+Both transports source `protocolVersion` from `Mcp::PROTOCOL_VERSION` and `clientInfo` from `Mcp::clientInfo()`, so version handling is centralised.
 
 ---
 
@@ -240,15 +242,11 @@ parse(StreamInterface $stream, ?callable $onEvent): array
 - If the message has a `result`, record it as the new "final."
 - Reset `current` to an empty event.
 
-Comment lines (`:`-prefixed) and `data: [DONE]` sentinels are ignored. Multi-line `data:` continuations are concatenated with `\n` before decoding.
+Comment lines (`:`-prefixed) and `data: [DONE]` sentinels are ignored. Multi-line `data:` continuations are concatenated with `\n` before decoding. Error events without a `message` field fall back to `'Unknown JSON-RPC error'` so spec-compliant servers that omit it do not trigger PHP warnings.
 
 ### Why a custom parser
 
 Guzzle doesn't ship an SSE decoder; pulling one as a dep just for this one use case isn't worth it. The class is ~140 lines and has explicit unit tests in `tests/Http/SseStreamParserTest.php`.
-
-### Known gap
-
-Error events with no `message` field emit an undefined-index warning today (P1 in ROADMAP). Defensive read: `$decoded['error']['message'] ?? 'Unknown JSON-RPC error'`.
 
 ---
 
@@ -260,12 +258,14 @@ Error events with no `message` field emit an undefined-index warning today (P1 i
 
 ```php
 'github' => [
-    'type'     => Transporters::HTTP,
-    'base_url' => 'https://api.githubcopilot.com/mcp',
-    'timeout'  => 30,                    // seconds; bounds connection setup, NOT body reads
-    'token'    => env('GITHUB_API_TOKEN'),
-    'id_type'  => 'int',                 // 'int' | 'string' — JSON-RPC id cast
-    'headers'  => [],                    // override Accept/Authorization if needed
+    'type'                => Transporters::HTTP,
+    'base_url'            => 'https://api.githubcopilot.com/mcp',
+    'token'               => env('GITHUB_API_TOKEN'),
+    'timeout'             => 30,           // seconds; connection timeout
+    'read_timeout'        => 60,           // seconds; max gap between SSE chunks (null disables)
+    'max_session_retries' => 1,            // retries after a session-loss 404 (0 disables)
+    'headers'             => [],           // merged into every request
+    'id_type'             => 'int',        // 'int' | 'string' — JSON-RPC id cast
 ],
 ```
 
@@ -273,15 +273,19 @@ Error events with no `message` field emit an undefined-index warning today (P1 i
 
 ```php
 'npx_mcp_server' => [
-    'type'          => Transporters::STDIO,
-    'command'       => ['npx', '-y', '@modelcontextprotocol/server-memory'],
-    'timeout'       => 30,               // seconds, applies to waitForResponse
-    'cwd'           => base_path(),
-    'env'           => [],               // PATH is auto-merged
-    'startup_delay' => 50,               // ms after process start
-    'poll_interval' => 10,               // ms between getIncrementalOutput() polls
+    'type'            => Transporters::STDIO,
+    'command'         => ['npx', '-y', '@modelcontextprotocol/server-memory'],
+    'cwd'             => base_path(),
+    'env'             => null,             // user keys merged on top of parent env
+    'inherit_env'     => true,             // false → forward only the `env` keys
+    'request_timeout' => 30,               // seconds, applies to waitForResponse
+    'process_timeout' => null,             // seconds, Symfony Process kill timer; null disables
+    'startup_delay'   => 100,              // ms after process start
+    'poll_interval'   => 20,               // ms between getIncrementalOutput() polls
 ],
 ```
+
+The legacy `timeout` key on STDIO falls through to `request_timeout` when only that is set, so 1.x configs keep working without reaching for the kill timer.
 
 The factory dispatches on `type`; everything else is transport-specific and only the relevant transporter inspects its keys.
 
@@ -294,7 +298,7 @@ Two exceptions, both extending `\Exception`:
 - `Redberry\MCPClient\Core\Exceptions\TransporterRequestException` — every transport-layer failure: HTTP errors, JSON-RPC errors, malformed responses, timeouts, eventual session loss. Code preserves the spec JSON-RPC error code where applicable.
 - `Redberry\MCPClient\Core\Exceptions\ServerConfigurationException` — invalid config shape detected at construction (currently only thrown by `StdioTransporter` for missing `command`).
 
-`MCPClient::ensureConfigurationValidity()` throws a vanilla `\RuntimeException` for unknown server names — that one's a programmer error, not a runtime IO problem.
+`MCPClient::connect()` throws a vanilla `\RuntimeException` for unknown server names, and `callTool()` / `readResource()` throw the same when called without a prior `connect()` — both are programmer errors, not runtime IO problems.
 
 Callers should catch `TransporterRequestException` for IO failures. They should never need to catch raw `GuzzleException` or `JsonException` — those are wrapped at the transport boundary.
 
@@ -305,7 +309,7 @@ Callers should catch `TransporterRequestException` for IO failures. They should 
 - **Pest** with Orchestra Testbench (`tests/TestCase.php`).
 - **No real network or subprocesses.** HTTP transporter tests inject a Guzzle `Client` wrapping `MockHandler`. SSE parser tests feed a `StreamInterface` mock. STDIO transporter tests use stub commands or fixtures, not real `npx`.
 - **Architecture rule.** `tests/ArchTest.php` forbids `dd`, `dump`, `ray` in source files.
-- **Constructor injection over reflection.** `HttpTransporter` accepts an optional Guzzle client specifically so tests don't need `ReflectionClass`. New tests should follow that pattern (legacy reflection-based helpers are tracked for removal in ROADMAP P4).
+- **Constructor injection over reflection.** `HttpTransporter` accepts an optional Guzzle client specifically so tests don't need `ReflectionClass`. New tests should follow that pattern.
 - **Real-shape fixtures** live in `tests/Datasets/` (e.g. `GithubResponseExample.php`).
 
 See [`.claude/rules/testing.md`](.claude/rules/testing.md) for the full testing rules.

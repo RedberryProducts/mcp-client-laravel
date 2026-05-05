@@ -5,42 +5,17 @@
 [![GitHub Code Style Action Status](https://img.shields.io/github/actions/workflow/status/redberryproducts/mcp-client-laravel/fix-php-code-style-issues.yml?branch=main&label=code%20style&style=flat-square)](https://github.com/redberryproducts/mcp-client-laravel/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
 [![Total Downloads](https://img.shields.io/packagist/dt/redberry/mcp-client-laravel.svg?style=flat-square)](https://packagist.org/packages/redberry/mcp-client-laravel)
 
-<p align="center">
-  <strong>Laravel-native client for Model Context Protocol (MCP) servers</strong><br>
-  Built and maintained by <a href="[https://redberry.international](https://redberry.international/?utm_source=github&utm_medium=github_mcp_readme&utm_campaign=AI+service+campaign)">Redberry</a>, a Diamond-tier official Laravel partner.
-</p>
-
-<p align="center">
-  <a href="[https://redberry.international/ai-agent-development/](https://redberry.international/ai-agent-development/?utm_source=github&utm_medium=github_mcp_readme&utm_campaign=AI+service+campaign)">AI PoC Sprint</a>
-</p>
-
----
-
-## 🚀 What is This?
-
-This package provides a Laravel-native client for interacting with **Model Context Protocol (MCP)** servers — enabling your Laravel application to communicate with external tools, structured resources, and memory services in a standardized way.
-
-It is **framework-agnostic** and can be used in any Laravel application. Agent frameworks like [LarAgent](https://github.com/MaestroError/LarAgent) use this package internally to enable tool use, memory management, and reasoning across distributed contexts.
-
-Use it to:
-
-- Connect to any MCP-compliant server over HTTP or STDIO
-- Discover and call tools defined on MCP servers
-- Access structured memory and contextual resources
-- Extend your Laravel apps with AI-ready interfaces to external agents or toolchains
-
-> 🚀 Looking to build an AI agent in Laravel? [Talk to us]([https://redberry.international/ai-agent-development/](https://redberry.international/ai-agent-development/?utm_source=github&utm_medium=github_mcp_readme&utm_campaign=AI+service+campaign)) about our 5-week PoC sprint — from idea to working prototype.
+A Laravel client for the [Model Context Protocol](https://modelcontextprotocol.io/). It speaks JSON-RPC 2.0 over both [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http) (`2025-03-26`) and STDIO, and exposes a single facade for listing and calling tools and reading resources. The HTTP transport content-negotiates with the server on every request, so you receive the final result whether the server replies with one JSON object or a stream of server-sent events.
 
 ## Installation
-_Note that while project is running with `php artisan serve` **STDIO** transporter doesn't work_
 
-You can install the package via composer:
+Install the package via Composer:
 
 ```bash
 composer require redberry/mcp-client-laravel
 ```
 
-After installation, publish the configuration file:
+Then publish the configuration file:
 
 ```bash
 php artisan vendor:publish --tag="mcp-client-config"
@@ -50,168 +25,149 @@ This will create a `config/mcp-client.php` file in your application.
 
 ## Configuration
 
-The published configuration file contains settings for your MCP servers. Here's an example configuration:
+The `mcp-client.servers` array maps a server name to its connection details. Each server uses one of two transports — `HTTP` for remote servers, `STDIO` for local subprocesses:
 
 ```php
+use Redberry\MCPClient\Enums\Transporters;
+
 return [
     'servers' => [
         'github' => [
-            'type' => \Redberry\MCPClient\Enums\Transporters::HTTP,
+            'type'     => Transporters::HTTP,
             'base_url' => 'https://api.githubcopilot.com/mcp',
-            'timeout' => 30,
-            'token' => env('GITHUB_API_TOKEN', null),
+            'token'    => env('GITHUB_API_TOKEN'),
+            'timeout'  => 30,
         ],
-        'npx_mcp_server' => [
-            'type' => \Redberry\MCPClient\Enums\Transporters::STDIO,
-            'command' => [
-                'npx',
-                '-y',
-                '@modelcontextprotocol/server-memory',
-            ],
-            'request_timeout' => 30,
-            'process_timeout' => null,
-            'cwd' => base_path(),
+
+        'memory' => [
+            'type'    => Transporters::STDIO,
+            'command' => ['npx', '-y', '@modelcontextprotocol/server-memory'],
+            'cwd'     => base_path(),
         ],
     ],
 ];
 ```
 
-### Configuration Options
+### HTTP Transport
 
-#### HTTP Transporter
+The HTTP transport implements MCP's [Streamable HTTP transport](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http). On the first request, it performs the `initialize` handshake and captures the `mcp-session-id` for the rest of the session. If the server later signals that the session has expired with an HTTP `404`, the client clears its session, re-handshakes, and retries the call once.
 
--   `type`: Set to `Redberry\MCPClient\Enums\Transporters::HTTP` for HTTP connections
--   `base_url`: The base URL of the MCP server
--   `timeout`: Request timeout in seconds
--   `token`: Authentication token (if required)
+| Key | Default | Description |
+| --- | --- | --- |
+| `base_url` | — | The MCP endpoint URL. |
+| `token` | `null` | Bearer token; sent as `Authorization: Bearer {token}` when present. |
+| `timeout` | `30` | Connection timeout in seconds. |
+| `read_timeout` | `60` | Maximum gap between SSE chunks before the parser aborts a wedged stream. The clock resets on every chunk. Set to `null` to disable. |
+| `max_session_retries` | `1` | Automatic retries after a session-loss `404`. Set to `0` to disable. |
+| `headers` | `[]` | Additional headers merged into every request. |
+| `id_type` | `'int'` | `'int'` or `'string'`; controls how JSON-RPC ids are cast. |
 
-The HTTP transporter implements MCP's [Streamable HTTP transport](https://modelcontextprotocol.io/specification/2025-03-26/basic/transports#streamable-http). Each request advertises `Accept: application/json, text/event-stream`, and the server decides — per call — whether to respond with a single JSON object or an SSE stream of JSON-RPC messages. The client handles both transparently: you always receive the final `result`, regardless of how the server chose to deliver it.
+### STDIO Transport
 
-#### STDIO Transporter
+The STDIO transport launches the configured command as a subprocess and exchanges newline-delimited JSON-RPC over its standard streams. The subprocess starts lazily on the first call and is reused for every subsequent request.
 
--   `type`: Set to `Redberry\MCPClient\Enums\Transporters::STDIO` for STDIO connections
--   `command`: Array of command parts to execute the MCP server
--   `request_timeout`: Per-call wait timeout in seconds for a JSON-RPC response (default: `30`). Falls back to the legacy `timeout` key when only that is set.
--   `process_timeout`: Symfony Process kill timer in seconds; `null` disables it (default: `null`). Set only if you need a hard upper bound on the entire subprocess lifetime — long-lived sessions (e.g. queue workers calling tools across many jobs) typically want it disabled.
--   `cwd`: Current working directory for the command
--   `env`: Environment variables to forward to the subprocess. Merged on top of the parent env (`PATH`, `HOME`, etc.) so `npx` / `node` keep working out of the box. Pass `inherit_env: false` for a sealed env containing only the keys listed here.
--   `inherit_env`: When `false`, the subprocess receives only the keys in `env`. Default: `true`.
--   `startup_delay`: Milliseconds to wait after `process->start()` before sending the initialize handshake (default: `100`). Increase if a cold-start `npx -y …` is still booting when the handshake fires.
--   `poll_interval`: Milliseconds between reads of the subprocess output buffer while waiting for a response (default: `20`).
+| Key | Default | Description |
+| --- | --- | --- |
+| `command` | — | Array of command parts to launch. |
+| `cwd` | `null` | Working directory for the subprocess. |
+| `env` | `null` | Environment variables, merged on top of the parent environment. |
+| `inherit_env` | `true` | When `false`, the subprocess receives only the keys listed in `env`. |
+| `request_timeout` | `30` | Per-call wait for a JSON-RPC response, in seconds. Falls back to the legacy `timeout` key when only that is set. |
+| `process_timeout` | `null` | Symfony Process kill timer, in seconds. Set this only if you need a hard upper bound on the subprocess lifetime. |
+| `startup_delay` | `100` | Milliseconds to wait after `Process::start()` before sending the `initialize` handshake. Increase if a cold-start `npx -y …` is still booting when the handshake fires. |
+| `poll_interval` | `20` | Milliseconds between reads of the subprocess output buffer. |
 
-## Usage
+> **Note.** The STDIO transport does not work under `php artisan serve`. The built-in PHP development server tears down its worker between requests, which kills the long-running subprocess. Run your application via Octane, a queue worker, Sail, or Valet to use STDIO servers.
 
-### Basic Usage
+## Connecting to a Server
+
+Resolve the client and call `connect` with a server name from your configuration:
 
 ```php
 use Redberry\MCPClient\Facades\MCPClient;
 
-// Connect to a specific MCP server defined in your config
-$client = MCPClient::connect('github');
-
-// Get available tools from the MCP server
-$tools = $client->tools();
-
-// Get available resources from the MCP server
-$resources = $client->resources();
+$github = MCPClient::connect('github');
 ```
 
-### Using Dependency Injection
+The container binds the client as a singleton and aliases the `Redberry\MCPClient\Contracts\MCPClient` interface to it, so the facade and dependency injection on the contract resolve the same instance:
 
 ```php
-use Redberry\MCPClient\MCPClient;
+use Redberry\MCPClient\Contracts\MCPClient;
 
-class MyService
+class GithubToolService
 {
-    public function __construct(private MCPClient $mcpClient)
-    {
-    }
+    public function __construct(private MCPClient $client) {}
 
-    public function getToolsFromGithub()
+    public function tools()
     {
-        return $this->mcpClient->connect('github')->tools();
+        return $this->client->connect('github')->tools();
     }
 }
 ```
 
-### Working with Collections
-
-The `tools()` and `resources()` methods return a `Collection` object that provides helpful methods for working with the results:
+`connect` returns a per-server clone of the client, so you may hold handles to multiple servers at once without one routing through another:
 
 ```php
-// Get all tools as an array
-$allTools = $client->tools()->all();
+$github = MCPClient::connect('github');
+$memory = MCPClient::connect('memory');
 
-// Get only specific tools by name
-$specificTools = $client->tools()->only('tool1', 'tool2');
-
-// Exclude specific tools
-$filteredTools = $client->tools()->except('tool3');
-
-// Map over tools
-$mappedTools = $client->tools()->map(function ($tool) {
-    return $tool['name'];
-});
+$github->tools();
+$memory->tools();
 ```
 
-> `only()` and `except()` filter on `name` for tools and on `uri` for resources — collections returned by `tools()` and `resources()` know which key to match on.
+Repeated `connect` calls for the same server reuse a cached transporter, so the `initialize` handshake is paid once per server per root instance.
 
-### Call tools
+## Listing Tools and Resources
 
-The `callTool` method is used to execute specific tool. Here is the signature:
+The `tools` and `resources` methods return a `Collection` of associative arrays:
 
 ```php
-public function callTool(string $toolName, mixed $params = [], ?callable $onEvent = null): mixed;
+$tools = $github->tools();
+
+$tools->all();                          // raw array
+$tools->only('search', 'create_issue'); // by name
+$tools->except('delete_repository');    // by name
+$tools->map(fn ($tool) => $tool['name']);
 ```
 
-Example:
+The same `Collection` wraps both lists, but `only` and `except` know which key to filter on — `name` for tools and `uri` for resources.
+
+## Calling a Tool
+
+Pass the tool name and an associative array of arguments. The method returns the decoded JSON-RPC `result` array:
 
 ```php
-$result = $client->callTool('create_entities', [
-    'entities' => [
-        [
-            'name' => 'John Doe',
-            'entityType' => 'PERSON',
-            'observations' => ['Test observation 1', 'Test observation 2'],
-        ]
-    ],
+$result = $github->callTool('create_issue', [
+    'owner' => 'laravel',
+    'repo'  => 'framework',
+    'title' => 'Documentation feedback',
+    'body'  => '…',
 ]);
 ```
 
-#### Observing streamed events
+## Reading a Resource
 
-When the server responds with an SSE stream, you can pass an `$onEvent` callback to observe every decoded JSON-RPC message — progress notifications, partial results, log entries, and the final result-bearing message — as each one arrives. The call still blocks until the final `result` is returned.
+Pass the URI of the resource. The method returns the decoded JSON-RPC `result` array:
 
 ```php
-$result = $client->callTool('long_running_tool', $args, function (array $event) {
-    // $event is a decoded JSON-RPC message: notification, progress, or final result
-    logger()->debug('mcp event', $event);
+$result = $github->readResource('file:///project/src/main.rs');
+```
+
+## Streaming Events
+
+Both `callTool` and `readResource` accept an optional callback as the last argument. When the server replies with an SSE stream, the callback is invoked for every decoded JSON-RPC message — progress notifications, log entries, partial results, and the final result-bearing one — as each arrives. The call still blocks until the final result is returned:
+
+```php
+$result = $github->callTool('long_running_task', $args, function (array $event) {
+    Log::info('mcp event', $event);
 });
 ```
 
-The callback is invoked zero times if the server returns a single JSON response, so it is safe to pass unconditionally.
+The callback is invoked zero times when the server replies with a single JSON object, so it is safe to pass unconditionally. Streaming is an HTTP-only concept; the callback is a no-op under the STDIO transport.
 
-> **Transport note.** Streaming events are an HTTP-only concept (specifically, MCP's Streamable HTTP `text/event-stream` responses). When the active server is configured with `type: stdio`, or when an HTTP server replies with a single JSON message, `$onEvent` fires zero times. You do not need to branch on the active transport — passing `$onEvent` is always safe; it is simply a no-op when the server isn't streaming.
+## Custom Transports
 
-### Read Resources
-
-The `readResource` method is used to retrieve the resource by the `uri`. It accepts the same optional `$onEvent` callback as `callTool`.
-
-```php
-public function readResource(string $uri, ?callable $onEvent = null): mixed;
-```
-
-Example:
-
-```php
-$result = $client->readResource("file:///project/src/main.rs");
-```
-
-## Advanced Usage
-
-### Creating Custom Transporters
-
-If you need to create a custom transporter, you can extend the `Transporter` interface and implement your own transport mechanism. Then register it in the `TransporterFactory`.
+The package ships with HTTP and STDIO transports, and the IO seam is a single interface — `Redberry\MCPClient\Core\Transporters\Transporter`. To add another, implement the interface, register a case on `Redberry\MCPClient\Enums\Transporters`, and add a `match` arm to `TransporterFactory::make`. See [`ARCHITECTURE.md`](ARCHITECTURE.md) and [`.claude/rules/transporters.md`](.claude/rules/transporters.md) for the full contract.
 
 ## Testing
 
@@ -219,23 +175,29 @@ If you need to create a custom transporter, you can extend the `Transporter` int
 composer test
 ```
 
+## Upgrading
+
+Upgrading from `1.x` to `2.x`? See [`UPGRADE.md`](UPGRADE.md) for the migration guide.
+
 ## Changelog
 
-Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
+See [`CHANGELOG.md`](CHANGELOG.md) for the list of changes.
 
 ## Contributing
 
-Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for guidelines.
 
 ## Security Vulnerabilities
 
-Please review [our security policy](../../security/policy) on how to report security vulnerabilities.
+Please review [our security policy](../../security/policy) before reporting a vulnerability.
 
 ## Credits
 
--   [Nika Jorjoliani](https://github.com/nikajorjika)
--   [All Contributors](../../contributors)
+- [Nika Jorjoliani](https://github.com/nikajorjika)
+- [All Contributors](../../contributors)
+
+Built and maintained by [Redberry](https://redberry.international/?utm_source=github&utm_medium=github_mcp_readme&utm_campaign=AI+service+campaign), a Diamond-tier Laravel partner. We also run a [5-week AI agent PoC sprint](https://redberry.international/ai-agent-development/?utm_source=github&utm_medium=github_mcp_readme&utm_campaign=AI+service+campaign) for teams exploring agentic features in Laravel.
 
 ## License
 
-The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+The MIT License (MIT). Please see [`LICENSE.md`](LICENSE.md) for more information.
