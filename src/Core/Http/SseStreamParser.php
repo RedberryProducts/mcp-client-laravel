@@ -24,26 +24,43 @@ class SseStreamParser
     private const DONE_SENTINEL = '[DONE]';
 
     /**
+     * Microseconds to sleep between consecutive empty `read()`s when a read
+     * timeout is configured. Prevents pegging CPU when the underlying stream
+     * is non-blocking and returns '' while waiting for bytes to arrive.
+     */
+    private const EMPTY_READ_SLEEP_US = 1000;
+
+    /**
      * Read the stream to completion and return the final JSON-RPC `result`.
      *
      * @param  callable(array $event):void|null  $onEvent  Invoked for every decoded event message,
      *                                                     including the final result-bearing one.
+     * @param  float|null  $readTimeout  Max seconds to wait between chunks before
+     *                                   throwing. Null disables the timeout.
+     *                                   The clock resets whenever a non-empty
+     *                                   chunk arrives, so long-running operations
+     *                                   that stream progress events stay alive.
      *
-     * @throws TransporterRequestException If the stream ends without a result, or any event carries a JSON-RPC error.
+     * @throws TransporterRequestException If the stream ends without a result, any event carries a JSON-RPC error, or the read timeout fires.
      * @throws JsonException
      */
-    public static function parse(StreamInterface $stream, ?callable $onEvent = null): array
+    public static function parse(StreamInterface $stream, ?callable $onEvent = null, ?float $readTimeout = null): array
     {
         $buffer = '';
         $current = self::emptyEvent();
         $final = null;
+        $lastChunkAt = microtime(true);
 
         while (! $stream->eof()) {
             $chunk = $stream->read(self::READ_BYTES);
+
             if ($chunk === '') {
+                self::awaitNextChunk($lastChunkAt, $readTimeout);
+
                 continue;
             }
 
+            $lastChunkAt = microtime(true);
             $buffer .= $chunk;
             self::drainLines($buffer, $current, $final, $onEvent);
         }
@@ -59,6 +76,29 @@ class SseStreamParser
         }
 
         return $final;
+    }
+
+    /**
+     * Called after an empty `read()`. Throws if the gap since the last chunk
+     * has exceeded the configured timeout, otherwise backs off briefly so the
+     * loop doesn't spin a CPU on non-blocking streams. No-op when no timeout
+     * is configured.
+     *
+     * @throws TransporterRequestException
+     */
+    private static function awaitNextChunk(float $lastChunkAt, ?float $readTimeout): void
+    {
+        if ($readTimeout === null) {
+            return;
+        }
+
+        if ((microtime(true) - $lastChunkAt) > $readTimeout) {
+            throw new TransporterRequestException(
+                sprintf('SSE read timed out after %ss without receiving data.', $readTimeout)
+            );
+        }
+
+        usleep(self::EMPTY_READ_SLEEP_US);
     }
 
     /**

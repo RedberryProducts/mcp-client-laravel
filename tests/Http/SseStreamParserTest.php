@@ -3,8 +3,13 @@
 declare(strict_types=1);
 
 use GuzzleHttp\Psr7\Utils;
+use Psr\Http\Message\StreamInterface;
 use Redberry\MCPClient\Core\Exceptions\TransporterRequestException;
 use Redberry\MCPClient\Core\Http\SseStreamParser;
+
+afterEach(function () {
+    Mockery::close();
+});
 
 describe('SseStreamParser', function () {
     test('returns the result of a single event', function () {
@@ -140,6 +145,44 @@ SSE;
 
     test('handles an empty stream by throwing', function () {
         expect(fn () => SseStreamParser::parse(Utils::streamFor('')))
+            ->toThrow(TransporterRequestException::class, 'SSE stream ended without a JSON-RPC result.');
+    });
+
+    test('throws TransporterRequestException when no chunks arrive within the read timeout', function () {
+        $stream = Mockery::mock(StreamInterface::class);
+        $stream->shouldReceive('eof')->andReturn(false);
+        $stream->shouldReceive('read')->andReturn('');
+
+        $start = microtime(true);
+
+        try {
+            SseStreamParser::parse($stream, null, 0.05);
+            expect()->fail('Expected a SSE read timeout to fire.');
+        } catch (TransporterRequestException $e) {
+            $elapsed = microtime(true) - $start;
+
+            expect($e->getMessage())->toContain('SSE read timed out')
+                ->and($elapsed)->toBeLessThan(1.0);
+        }
+    });
+
+    test('does not time out when chunks arrive within the read timeout', function () {
+        $sse = "data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"ok\":true}}\n\n";
+
+        $result = SseStreamParser::parse(Utils::streamFor($sse), null, 0.05);
+
+        expect($result)->toEqual(['ok' => true]);
+    });
+
+    test('null read timeout disables timeout enforcement', function () {
+        // Stream returns several empty reads, then EOFs. With timeout=null
+        // the parser must run to EOF and surface the "ended without result"
+        // error rather than the timeout error.
+        $stream = Mockery::mock(StreamInterface::class);
+        $stream->shouldReceive('eof')->andReturn(false, false, false, true);
+        $stream->shouldReceive('read')->andReturn('', '', '');
+
+        expect(fn () => SseStreamParser::parse($stream, null, null))
             ->toThrow(TransporterRequestException::class, 'SSE stream ended without a JSON-RPC result.');
     });
 });

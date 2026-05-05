@@ -8,6 +8,7 @@ return [
             'type' => Transporters::HTTP,
             'base_url' => 'https://api.githubcopilot.com/mcp',
             'timeout' => 30,
+            'read_timeout' => 60, // seconds - max gap between SSE chunks before aborting; resets on each chunk. Set to null to disable. (default: 60)
             'token' => env('GITHUB_API_TOKEN', null),
             'id_type' => 'int', // 'string' or 'int' - controls JSON-RPC id type (default: 'int')
             'headers' => [

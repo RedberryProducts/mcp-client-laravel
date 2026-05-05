@@ -4,6 +4,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Psr7\Response;
 use GuzzleHttp\Psr7\Utils;
+use Psr\Http\Message\StreamInterface;
 use Redberry\MCPClient\Core\Exceptions\TransporterRequestException;
 use Redberry\MCPClient\Core\Mcp;
 use Redberry\MCPClient\Core\Transporters\HttpTransporter;
@@ -352,6 +353,40 @@ SSE;
         $mockClient->shouldReceive('request')->once()->andReturn($response);
 
         expect($transporter->request('stream'))->toEqual(['ok' => true]);
+    });
+
+    test('SSE response that wedges is aborted by the configured read_timeout', function () {
+        $mockClient = Mockery::mock(Client::class);
+        $transporter = new HttpTransporter(['read_timeout' => 0.05], $mockClient);
+
+        $initResp = new Response(200, ['mcp-session-id' => 'sid', 'Content-Type' => 'application/json'], json_encode(['result' => []]));
+        $notifyResp = new Response(202, [], '');
+
+        $wedgedBody = Mockery::mock(StreamInterface::class);
+        $wedgedBody->shouldReceive('eof')->andReturn(false);
+        $wedgedBody->shouldReceive('read')->andReturn('');
+
+        $reqResp = new Response(200, ['Content-Type' => 'text/event-stream'], $wedgedBody);
+
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'initialize'))
+            ->andReturn($initResp);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'notifications/initialized'))
+            ->andReturn($notifyResp);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'wedge'))
+            ->andReturn($reqResp);
+
+        $start = microtime(true);
+
+        try {
+            $transporter->request('wedge');
+            expect()->fail('Expected the configured read_timeout to abort the wedged stream.');
+        } catch (TransporterRequestException $e) {
+            expect($e->getMessage())->toContain('SSE read timed out')
+                ->and(microtime(true) - $start)->toBeLessThan(1.0);
+        }
     });
 
     test('onEvent callback receives every SSE event including the final result', function () {

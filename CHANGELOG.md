@@ -10,6 +10,7 @@ All notable changes to `mcp-client-laravel` will be documented in this file.
 - New `SseStreamParser` helper for decoding `text/event-stream` responses.
 - Optional `?callable $onEvent` parameter on `MCPClient::callTool()` and `MCPClient::readResource()` (and on the underlying `Transporter::request()` interface) for observing intermediate streamed events.
 - `HttpTransporter` constructor now accepts an optional Guzzle `ClientInterface` for dependency injection.
+- `read_timeout` config key on the HTTP transporter (default `60` seconds) — the maximum gap between SSE chunks before the parser aborts a wedged stream. The clock resets on every received chunk so long-running operations that stream progress events stay alive.
 
 ### Changed
 
