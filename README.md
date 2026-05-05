@@ -68,7 +68,8 @@ return [
                 '-y',
                 '@modelcontextprotocol/server-memory',
             ],
-            'timeout' => 30,
+            'request_timeout' => 30,
+            'process_timeout' => null,
             'cwd' => base_path(),
         ],
     ],
@@ -90,8 +91,13 @@ The HTTP transporter implements MCP's [Streamable HTTP transport](https://modelc
 
 -   `type`: Set to `Redberry\MCPClient\Enums\Transporters::STDIO` for STDIO connections
 -   `command`: Array of command parts to execute the MCP server
--   `timeout`: Command timeout in seconds
+-   `request_timeout`: Per-call wait timeout in seconds for a JSON-RPC response (default: `30`). Falls back to the legacy `timeout` key when only that is set.
+-   `process_timeout`: Symfony Process kill timer in seconds; `null` disables it (default: `null`). Set only if you need a hard upper bound on the entire subprocess lifetime — long-lived sessions (e.g. queue workers calling tools across many jobs) typically want it disabled.
 -   `cwd`: Current working directory for the command
+-   `env`: Environment variables to forward to the subprocess. Merged on top of the parent env (`PATH`, `HOME`, etc.) so `npx` / `node` keep working out of the box. Pass `inherit_env: false` for a sealed env containing only the keys listed here.
+-   `inherit_env`: When `false`, the subprocess receives only the keys in `env`. Default: `true`.
+-   `startup_delay`: Milliseconds to wait after `process->start()` before sending the initialize handshake (default: `100`). Increase if a cold-start `npx -y …` is still booting when the handshake fires.
+-   `poll_interval`: Milliseconds between reads of the subprocess output buffer while waiting for a response (default: `20`).
 
 ## Usage
 

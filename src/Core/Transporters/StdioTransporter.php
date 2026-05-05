@@ -18,7 +18,7 @@ class StdioTransporter implements Transporter
 
     private int $requestId = 0;
 
-    private const DEFAULT_TIMEOUT = 3;
+    private const DEFAULT_REQUEST_TIMEOUT = 30; // seconds
 
     private const DEFAULT_STARTUP_DELAY = 100; // milliseconds
 
@@ -129,7 +129,7 @@ class StdioTransporter implements Transporter
 
     protected function initializeProcess(): void
     {
-        $env = $this->getEnv();
+        $env = $this->resolveEnv();
 
         $this->inputStream = new InputStream;
         $this->process = new Process(
@@ -137,7 +137,7 @@ class StdioTransporter implements Transporter
             $this->cwd,
             $env,
             $this->inputStream,
-            $this->config['timeout'] ?? self::DEFAULT_TIMEOUT
+            $this->resolveProcessTimeout()
         );
 
         $this->process->setTty(false);
@@ -180,7 +180,9 @@ class StdioTransporter implements Transporter
     }
 
     /**
-     *  Handles the failure of the process to start.
+     * Handles the failure of the process to start. Surfaces stderr/stdout in the
+     * exception message so users can diagnose missing binaries, npm cache issues,
+     * etc., without re-running with logging enabled.
      *
      * @throws TransporterRequestException
      */
@@ -188,15 +190,16 @@ class StdioTransporter implements Transporter
     {
         $cmd = $this->buildCommandLine();
         $exit = $this->process->getExitCode();
-        $err = $this->process->getErrorOutput();
-        $out = $this->process->getOutput();
-
-        error_log("Failed to launch: $cmd (exit $exit). stderr: $err ; stdout: $out");
+        $err = trim($this->process->getErrorOutput());
+        $out = trim($this->process->getOutput());
 
         throw new TransporterRequestException(
             sprintf(
-                'Process failed to start (exit code: %s). Error: %s; Output: %s. Command was: %s',
-                $exit, $err, $out, $cmd
+                'Process failed to start (exit code: %s). stderr: %s; stdout: %s. Command was: %s',
+                $exit ?? 'unknown',
+                $err === '' ? '<empty>' : $err,
+                $out === '' ? '<empty>' : $out,
+                $cmd
             )
         );
     }
@@ -206,9 +209,8 @@ class StdioTransporter implements Transporter
      */
     protected function waitForResponse(string $id): array
     {
-        $env = $this->getEnv();
         $start = microtime(true);
-        $timeout = $this->config['timeout'] ?? self::DEFAULT_TIMEOUT;
+        $timeout = $this->resolveRequestTimeout();
         $buffer = '';
 
         while ((microtime(true) - $start) < $timeout) {
@@ -246,7 +248,7 @@ class StdioTransporter implements Transporter
 
         throw new TransporterRequestException(
             sprintf(
-                'Timeout after %d seconds waiting for response with id "%s".',
+                'Timeout after %s seconds waiting for response with id "%s".',
                 $timeout,
                 $id
             )
@@ -263,13 +265,70 @@ class StdioTransporter implements Transporter
     }
 
     /**
-     * @return array|mixed
+     * Resolves the per-request wait timeout in seconds.
+     *
+     * Order: explicit `request_timeout` → legacy `timeout` → default (30s).
+     * A present-but-`null` value is treated as unset (falls through to the next
+     * source) rather than `0` seconds, which would be an instant timeout.
+     * Returned as a float so `request_timeout: 1.5` keeps working.
      */
-    public function getEnv(): mixed
+    private function resolveRequestTimeout(): float
     {
-        $env = $this->config['env'] ?? [];
-        $env['PATH'] = getenv('PATH');
+        if (array_key_exists('request_timeout', $this->config) && $this->config['request_timeout'] !== null) {
+            return (float) $this->config['request_timeout'];
+        }
 
-        return $env;
+        if (array_key_exists('timeout', $this->config) && $this->config['timeout'] !== null) {
+            return (float) $this->config['timeout'];
+        }
+
+        return (float) self::DEFAULT_REQUEST_TIMEOUT;
+    }
+
+    /**
+     * Resolves the process kill-timer (Symfony Process arg #5).
+     *
+     * Defaults to `null` (kill timer disabled). Only honoured when explicitly set
+     * via `process_timeout`; the legacy `timeout` key no longer doubles as a
+     * total-runtime limit so long-lived sessions aren't killed mid-flight.
+     */
+    private function resolveProcessTimeout(): ?float
+    {
+        if (! array_key_exists('process_timeout', $this->config)) {
+            return null;
+        }
+
+        $value = $this->config['process_timeout'];
+
+        return $value === null ? null : (float) $value;
+    }
+
+    /**
+     * Resolves the environment passed to the child process.
+     *
+     * - No `env` (or empty) and `inherit_env !== false` → `null`, letting Symfony
+     *   `Process` inherit the parent env cleanly. Most servers want this.
+     * - User `env` supplied with inheritance on → user keys merged on top of the
+     *   parent env (`getenv()`). Avoids breaking `npx`/`node`, which need `HOME`,
+     *   `PATH`, etc., to find npm caches and resolve modules.
+     * - `inherit_env: false` → only the explicit user keys are forwarded (sealed
+     *   env). Use for hermetic / locked-down execution.
+     *
+     * @return array<string, string>|null
+     */
+    private function resolveEnv(): ?array
+    {
+        $userEnv = $this->config['env'] ?? null;
+        $inherit = $this->config['inherit_env'] ?? true;
+
+        if ($inherit === false) {
+            return is_array($userEnv) ? $userEnv : [];
+        }
+
+        if (! is_array($userEnv) || $userEnv === []) {
+            return null;
+        }
+
+        return array_merge(getenv() ?: [], $userEnv);
     }
 }

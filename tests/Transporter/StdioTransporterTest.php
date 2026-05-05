@@ -376,6 +376,223 @@ describe('StdioTransporter', function () {
             ->and(array_key_exists('id', $notification))->toBeFalse();
     });
 
+    it('uses request_timeout over legacy timeout when both are set', function () {
+        $config = ['command' => ['echo', 'hi'], 'timeout' => 99, 'request_timeout' => 1, 'env' => []];
+        $transporter = Mockery::mock(StdioTransporter::class, [$config])->makePartial();
+        $transporter->shouldAllowMockingProtectedMethods();
+
+        $process = Mockery::mock(Process::class);
+        $process->shouldReceive('getIncrementalOutput')->andReturn('');
+        $process->shouldReceive('isRunning')->byDefault()->andReturn(false);
+        $process->shouldReceive('stop')->byDefault();
+
+        $ref = new ReflectionClass(StdioTransporter::class);
+        $procProp = $ref->getProperty('process');
+        $procProp->setAccessible(true);
+        $procProp->setValue($transporter, $process);
+
+        $method = $ref->getMethod('waitForResponse');
+        $method->setAccessible(true);
+
+        $this->expectException(TransporterRequestException::class);
+        $this->expectExceptionMessageMatches('/Timeout after 1 seconds/');
+
+        $method->invoke($transporter, 'never-arrives');
+    });
+
+    it('falls back to legacy timeout when request_timeout is not set', function () {
+        $config = ['command' => ['echo', 'hi'], 'timeout' => 1, 'env' => []];
+        $transporter = Mockery::mock(StdioTransporter::class, [$config])->makePartial();
+        $transporter->shouldAllowMockingProtectedMethods();
+
+        $process = Mockery::mock(Process::class);
+        $process->shouldReceive('getIncrementalOutput')->andReturn('');
+        $process->shouldReceive('isRunning')->byDefault()->andReturn(false);
+        $process->shouldReceive('stop')->byDefault();
+
+        $ref = new ReflectionClass(StdioTransporter::class);
+        $procProp = $ref->getProperty('process');
+        $procProp->setAccessible(true);
+        $procProp->setValue($transporter, $process);
+
+        $method = $ref->getMethod('waitForResponse');
+        $method->setAccessible(true);
+
+        $this->expectException(TransporterRequestException::class);
+        $this->expectExceptionMessageMatches('/Timeout after 1 seconds/');
+
+        $method->invoke($transporter, 'never-arrives');
+    });
+
+    it('preserves fractional request_timeout values instead of truncating to int', function () {
+        $config = ['command' => ['echo', 'hi'], 'request_timeout' => 0.5, 'env' => []];
+        $transporter = Mockery::mock(StdioTransporter::class, [$config])->makePartial();
+        $transporter->shouldAllowMockingProtectedMethods();
+
+        $process = Mockery::mock(Process::class);
+        $process->shouldReceive('getIncrementalOutput')->andReturn('');
+        $process->shouldReceive('isRunning')->byDefault()->andReturn(false);
+        $process->shouldReceive('stop')->byDefault();
+
+        $ref = new ReflectionClass(StdioTransporter::class);
+        $procProp = $ref->getProperty('process');
+        $procProp->setAccessible(true);
+        $procProp->setValue($transporter, $process);
+
+        $method = $ref->getMethod('waitForResponse');
+        $method->setAccessible(true);
+
+        $this->expectException(TransporterRequestException::class);
+        $this->expectExceptionMessageMatches('/Timeout after 0\.5 seconds/');
+
+        $method->invoke($transporter, 'never-arrives');
+    });
+
+    it('treats request_timeout=null as unset and falls through to legacy timeout', function () {
+        $config = ['command' => ['echo', 'hi'], 'request_timeout' => null, 'timeout' => 1, 'env' => []];
+        $transporter = Mockery::mock(StdioTransporter::class, [$config])->makePartial();
+        $transporter->shouldAllowMockingProtectedMethods();
+
+        $process = Mockery::mock(Process::class);
+        $process->shouldReceive('getIncrementalOutput')->andReturn('');
+        $process->shouldReceive('isRunning')->byDefault()->andReturn(false);
+        $process->shouldReceive('stop')->byDefault();
+
+        $ref = new ReflectionClass(StdioTransporter::class);
+        $procProp = $ref->getProperty('process');
+        $procProp->setAccessible(true);
+        $procProp->setValue($transporter, $process);
+
+        $method = $ref->getMethod('waitForResponse');
+        $method->setAccessible(true);
+
+        $this->expectException(TransporterRequestException::class);
+        $this->expectExceptionMessageMatches('/Timeout after 1 seconds/');
+
+        $method->invoke($transporter, 'never-arrives');
+    });
+
+    it('process_timeout defaults to null and does not fall back to legacy timeout', function () {
+        $transporter = new StdioTransporter(['command' => ['echo', 'hi'], 'timeout' => 30]);
+
+        $ref = new ReflectionMethod($transporter, 'resolveProcessTimeout');
+        $ref->setAccessible(true);
+
+        expect($ref->invoke($transporter))->toBeNull();
+    });
+
+    it('process_timeout uses the configured value when set', function () {
+        $transporter = new StdioTransporter(['command' => ['echo', 'hi'], 'process_timeout' => 90]);
+
+        $ref = new ReflectionMethod($transporter, 'resolveProcessTimeout');
+        $ref->setAccessible(true);
+
+        expect($ref->invoke($transporter))->toBe(90.0);
+    });
+
+    it('resolveEnv returns null when no user env is provided so Symfony inherits the parent env', function () {
+        $transporter = new StdioTransporter(['command' => ['echo', 'hi']]);
+
+        $ref = new ReflectionMethod($transporter, 'resolveEnv');
+        $ref->setAccessible(true);
+
+        expect($ref->invoke($transporter))->toBeNull();
+    });
+
+    it('resolveEnv returns null when env is an empty array', function () {
+        $transporter = new StdioTransporter(['command' => ['echo', 'hi'], 'env' => []]);
+
+        $ref = new ReflectionMethod($transporter, 'resolveEnv');
+        $ref->setAccessible(true);
+
+        expect($ref->invoke($transporter))->toBeNull();
+    });
+
+    it('resolveEnv merges user env on top of the parent env when env is supplied', function () {
+        $parentKey = 'MCP_CLIENT_TEST_PARENT_ONLY';
+        $parentValue = 'parent-only-value';
+        putenv("$parentKey=$parentValue");
+
+        try {
+            $transporter = new StdioTransporter([
+                'command' => ['echo', 'hi'],
+                'env' => ['FOO' => 'bar'],
+            ]);
+
+            $ref = new ReflectionMethod($transporter, 'resolveEnv');
+            $ref->setAccessible(true);
+            $env = $ref->invoke($transporter);
+
+            expect($env)->toBeArray()
+                ->and($env['FOO'])->toBe('bar')
+                ->and($env[$parentKey] ?? null)->toBe($parentValue);
+        } finally {
+            putenv($parentKey);
+        }
+    });
+
+    it('resolveEnv user keys win over parent env when both define the same key', function () {
+        $key = 'MCP_CLIENT_TEST_OVERRIDE';
+        putenv("$key=parent-value");
+        try {
+            $transporter = new StdioTransporter([
+                'command' => ['echo', 'hi'],
+                'env' => [$key => 'user-value'],
+            ]);
+
+            $ref = new ReflectionMethod($transporter, 'resolveEnv');
+            $ref->setAccessible(true);
+            $env = $ref->invoke($transporter);
+
+            expect($env[$key])->toBe('user-value');
+        } finally {
+            putenv($key);
+        }
+    });
+
+    it('resolveEnv returns only user keys when inherit_env is false (sealed env)', function () {
+        $transporter = new StdioTransporter([
+            'command' => ['echo', 'hi'],
+            'env' => ['FOO' => 'bar'],
+            'inherit_env' => false,
+        ]);
+
+        $ref = new ReflectionMethod($transporter, 'resolveEnv');
+        $ref->setAccessible(true);
+        $env = $ref->invoke($transporter);
+
+        expect($env)->toBe(['FOO' => 'bar']);
+    });
+
+    it('resolveEnv returns an empty array under inherit_env=false with no user env', function () {
+        $transporter = new StdioTransporter([
+            'command' => ['echo', 'hi'],
+            'inherit_env' => false,
+        ]);
+
+        $ref = new ReflectionMethod($transporter, 'resolveEnv');
+        $ref->setAccessible(true);
+
+        expect($ref->invoke($transporter))->toBe([]);
+    });
+
+    it('handleStartupFailure surfaces stderr in the exception message', function () {
+        $command = PHP_OS_FAMILY === 'Windows'
+            ? ['cmd', '/c', 'echo bootfail-marker 1>&2 & exit 1']
+            : ['sh', '-c', 'printf bootfail-marker 1>&2; exit 1'];
+
+        $transporter = new StdioTransporter(['command' => $command]);
+
+        try {
+            $transporter->request('something');
+            $this->fail('Expected TransporterRequestException');
+        } catch (TransporterRequestException $e) {
+            expect($e->getMessage())
+                ->toContain('Process failed to start')
+                ->toContain('bootfail-marker');
+        }
+    });
+
     it('cleanup stops running process and unsets properties', function () {
         $transporter = Mockery::mock(StdioTransporter::class, [['command' => ['echo', 'run']]])->makePartial();
         $transporter->shouldAllowMockingProtectedMethods();
