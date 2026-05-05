@@ -23,11 +23,13 @@ return [
                 '-y',
                 '@modelcontextprotocol/server-memory',
             ],
-            'timeout' => 30,
+            'request_timeout' => 30, // seconds - per-call wait for a JSON-RPC response (default: 30)
+            'process_timeout' => null, // seconds - Symfony Process kill timer; null disables it (default: null). Set only if you need a hard upper bound on the entire subprocess lifetime.
             'cwd' => base_path(),
-            'env' => [],
-            'startup_delay' => 50, // milliseconds - delay after process start (default: 50)
-            'poll_interval' => 10, // milliseconds - polling interval for response (default: 10)
+            // 'env' => ['NODE_OPTIONS' => '--max-old-space-size=512'], // merged on top of the parent env (PATH, HOME, etc. are inherited by default)
+            // 'inherit_env' => false, // sealed env: forward only the keys listed in `env`. Default: true.
+            'startup_delay' => 100, // milliseconds - delay after process start before sending the initialize handshake (default: 100). Increase for slow cold-starts (e.g. first-run `npx -y` downloads).
+            'poll_interval' => 20, // milliseconds - polling interval for response (default: 20)
         ],
     ],
 ];
