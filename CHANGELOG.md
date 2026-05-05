@@ -17,6 +17,7 @@ All notable changes to `mcp-client-laravel` will be documented in this file.
 
 - `composer.json` now explicitly requires `guzzlehttp/guzzle` and `psr/http-message`, which the HTTP transporter has always relied on transitively.
 - Both transporters now report `protocolVersion: 2025-03-26` and source `clientInfo.version` from the installed composer package version (was hardcoded `0.1.0` on STDIO). Shared in a new `Redberry\MCPClient\Core\Mcp` value class.
+- HTTP transporter tests now exercise the real `initialize` + `notifications/initialized` handshake via constructor injection instead of poking private state with reflection. No production behavior change.
 
 ### Fixed
 

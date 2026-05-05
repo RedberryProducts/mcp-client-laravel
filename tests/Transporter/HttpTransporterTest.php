@@ -6,6 +6,7 @@ use GuzzleHttp\Exception\TransferException;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use GuzzleHttp\Psr7\Utils;
+use Mockery\MockInterface;
 use Psr\Http\Message\StreamInterface;
 use Redberry\MCPClient\Core\Exceptions\TransporterRequestException;
 use Redberry\MCPClient\Core\Mcp;
@@ -16,27 +17,36 @@ afterEach(function () {
 });
 
 describe('HttpTransporter', function () {
-    // Helper function to set up the transporter with a mocked client and session
-    function createTransporterWithMockedSession($responseForInitialize = null)
+    /**
+     * Builds an HttpTransporter wired to a Mockery-mocked Guzzle client via
+     * constructor injection, and primes the initialize + notifications/initialized
+     * handshake so the first user request triggers a session id of 'test-session-id'.
+     *
+     * The handshake expectations are method-specific, so subsequent test
+     * expectations on the same mock won't be intercepted.
+     *
+     * @return array{0: HttpTransporter, 1: MockInterface}
+     */
+    function setUpInitializedTransporter(array $config = []): array
     {
-        $transporter = new HttpTransporter;
         $mockClient = Mockery::mock(Client::class);
+        $transporter = new HttpTransporter($config, $mockClient);
 
-        // Inject the mocked client
-        $ref = new ReflectionClass($transporter);
-        $prop = $ref->getProperty('client');
-        $prop->setAccessible(true);
-        $prop->setValue($transporter, $mockClient);
+        $initResp = new Response(
+            200,
+            ['mcp-session-id' => 'test-session-id', 'Content-Type' => 'application/json'],
+            json_encode(['result' => []])
+        );
+        $notifyResp = new Response(202, [], '');
 
-        // Set the sessionId to avoid uninitialized property errors
-        $sessionProp = $ref->getProperty('sessionId');
-        $sessionProp->setAccessible(true);
-        $sessionProp->setValue($transporter, 'test-session-id');
-
-        // Set initialized flag to true to skip initialization
-        $initializedProp = $ref->getProperty('initialized');
-        $initializedProp->setAccessible(true);
-        $initializedProp->setValue($transporter, true);
+        $mockClient->shouldReceive('request')
+            ->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'initialize'))
+            ->andReturn($initResp);
+        $mockClient->shouldReceive('request')
+            ->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'notifications/initialized'))
+            ->andReturn($notifyResp);
 
         return [$transporter, $mockClient];
     }
@@ -184,7 +194,7 @@ describe('HttpTransporter', function () {
     });
 
     test('successful request returns result field', function () {
-        [$transporter, $mockClient] = createTransporterWithMockedSession();
+        [$transporter, $mockClient] = setUpInitializedTransporter();
 
         $response = new Response(200, [], json_encode(['result' => ['foo' => 'bar']]));
         $mockClient->shouldReceive('request')
@@ -203,7 +213,7 @@ describe('HttpTransporter', function () {
     });
 
     test('successful request returns full data when no result', function () {
-        [$transporter, $mockClient] = createTransporterWithMockedSession();
+        [$transporter, $mockClient] = setUpInitializedTransporter();
 
         $response = new Response(200, [], json_encode(['foo' => 'bar']));
         $mockClient->shouldReceive('request')
@@ -222,7 +232,7 @@ describe('HttpTransporter', function () {
     });
 
     test('invalid JSON response throws TransporterRequestException', function () {
-        [$transporter, $mockClient] = createTransporterWithMockedSession();
+        [$transporter, $mockClient] = setUpInitializedTransporter();
 
         $response = new Response(200, [], 'not-json');
         $mockClient->shouldReceive('request')
@@ -244,7 +254,7 @@ describe('HttpTransporter', function () {
     });
 
     test('JSON-RPC error throws TransporterRequestException with code', function () {
-        [$transporter, $mockClient] = createTransporterWithMockedSession();
+        [$transporter, $mockClient] = setUpInitializedTransporter();
 
         $error = ['error' => ['message' => 'Something went wrong', 'code' => 400]];
         $response = new Response(200, [], json_encode($error));
@@ -268,7 +278,7 @@ describe('HttpTransporter', function () {
     });
 
     test('Guzzle exception is wrapped in TransporterRequestException', function () {
-        [$transporter, $mockClient] = createTransporterWithMockedSession();
+        [$transporter, $mockClient] = setUpInitializedTransporter();
 
         $mockClient->shouldReceive('request')
             ->once()
@@ -315,7 +325,7 @@ describe('HttpTransporter', function () {
     });
 
     test('every request advertises both content types in Accept', function () {
-        [$transporter, $mockClient] = createTransporterWithMockedSession();
+        [$transporter, $mockClient] = setUpInitializedTransporter();
 
         $response = new Response(200, [], json_encode(['result' => ['ok' => true]]));
         $mockClient->shouldReceive('request')
@@ -328,7 +338,7 @@ describe('HttpTransporter', function () {
     });
 
     test('SSE response is parsed and final result returned', function () {
-        [$transporter, $mockClient] = createTransporterWithMockedSession();
+        [$transporter, $mockClient] = setUpInitializedTransporter();
 
         $sse = <<<'SSE'
 event: jsonrpc.message
@@ -348,7 +358,7 @@ SSE;
     });
 
     test('SSE Content-Type with charset suffix is recognized', function () {
-        [$transporter, $mockClient] = createTransporterWithMockedSession();
+        [$transporter, $mockClient] = setUpInitializedTransporter();
 
         $sse = "data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"ok\":true}}\n\n";
         $response = new Response(200, ['Content-Type' => 'text/event-stream; charset=utf-8'], Utils::streamFor($sse));
@@ -392,7 +402,7 @@ SSE;
     });
 
     test('onEvent callback receives every SSE event including the final result', function () {
-        [$transporter, $mockClient] = createTransporterWithMockedSession();
+        [$transporter, $mockClient] = setUpInitializedTransporter();
 
         $sse = <<<'SSE'
 data: {"jsonrpc":"2.0","method":"progress","params":{"pct":50}}
@@ -431,7 +441,7 @@ SSE;
     });
 
     test('JSON response with scalar result returns the full envelope', function () {
-        [$transporter, $mockClient] = createTransporterWithMockedSession();
+        [$transporter, $mockClient] = setUpInitializedTransporter();
 
         $response = new Response(200, ['Content-Type' => 'application/json'], json_encode(['jsonrpc' => '2.0', 'id' => 1, 'result' => 'plain-string']));
         $mockClient->shouldReceive('request')->once()->andReturn($response);
