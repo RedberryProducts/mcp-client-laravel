@@ -461,23 +461,26 @@ describe('StdioTransporter', function () {
     });
 
     it('resolveEnv merges user env on top of the parent env when env is supplied', function () {
-        $parentPath = getenv('PATH');
-        if ($parentPath === false || $parentPath === '') {
-            $this->markTestSkipped('Parent process has no PATH; cannot assert inheritance.');
+        $parentKey = 'MCP_CLIENT_TEST_PARENT_ONLY';
+        $parentValue = 'parent-only-value';
+        putenv("$parentKey=$parentValue");
+
+        try {
+            $transporter = new StdioTransporter([
+                'command' => ['echo', 'hi'],
+                'env' => ['FOO' => 'bar'],
+            ]);
+
+            $ref = new ReflectionMethod($transporter, 'resolveEnv');
+            $ref->setAccessible(true);
+            $env = $ref->invoke($transporter);
+
+            expect($env)->toBeArray()
+                ->and($env['FOO'])->toBe('bar')
+                ->and($env[$parentKey] ?? null)->toBe($parentValue);
+        } finally {
+            putenv($parentKey);
         }
-
-        $transporter = new StdioTransporter([
-            'command' => ['echo', 'hi'],
-            'env' => ['FOO' => 'bar'],
-        ]);
-
-        $ref = new ReflectionMethod($transporter, 'resolveEnv');
-        $ref->setAccessible(true);
-        $env = $ref->invoke($transporter);
-
-        expect($env)->toBeArray()
-            ->and($env['FOO'])->toBe('bar')
-            ->and($env['PATH'] ?? null)->toBe($parentPath);
     });
 
     it('resolveEnv user keys win over parent env when both define the same key', function () {
