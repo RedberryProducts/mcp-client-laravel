@@ -230,8 +230,8 @@ class HttpTransporter implements Transporter
 
     /**
      * JSON-RPC request id source. A per-instance incrementing counter avoids
-     * the birthday-paradox collisions a random_int(1, 1_000_000) source would
-     * see over a long-lived session (~1-in-1000 chance after 1k requests).
+     * the birthday-paradox collision risk that a bounded random source such
+     * as random_int(1, 1_000_000) would accumulate over a long-lived session.
      * The counter is intentionally not reset on session re-initialization —
      * each MCP session has its own id namespace on the server, so monotonic
      * client-side ids stay safe across re-handshakes within one instance.
