@@ -108,6 +108,10 @@ class HttpTransporter implements Transporter
                     'timeout' => $this->config['timeout'] ?? 30,
                     'stream' => true,
                     'headers' => $this->buildRequestHeaders(),
+                    // Force Guzzle to throw on 4xx/5xx even if an injected client
+                    // has `http_errors` disabled — otherwise a 404 would slip past
+                    // session-loss detection and surface as a parse error.
+                    'http_errors' => true,
                 ]);
 
                 return $this->parseResponse($response, $onEvent);
