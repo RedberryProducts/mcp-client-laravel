@@ -83,7 +83,7 @@ All file paths below are relative to the package root.
 
 ---
 
-## P6 — Document `$onEvent` is a no-op on STDIO
+## ~~P6 — Document `$onEvent` is a no-op on STDIO~~ ✅ Done
 
 **Problem.** `StdioTransporter::request()` (`src/Core/Transporters/StdioTransporter.php`, line 80) accepts `$onEvent` and silently ignores it. The interface docblock mentions this, but a README user reading the streaming-callback example may not realize it depends on the active transport.
 
