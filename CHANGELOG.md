@@ -4,6 +4,8 @@ All notable changes to `mcp-client-laravel` will be documented in this file.
 
 ## Unreleased
 
+This release contains breaking changes. See [UPGRADE.md](UPGRADE.md) for the `1.x → 2.x` migration guide.
+
 ### Added
 
 - Laravel 13 and PHP 8.5 support. `composer.json` now allows `illuminate/contracts: ^10.0||^11.0||^12.0||^13.0`, `php: ^8.3||^8.4||^8.5`, and `orchestra/testbench: ^8.22||^9.0||^10.0||^11.0`. Laravel 10 remains installable in package constraints during user transitions but is no longer covered by CI. The CI test matrix now runs PHP 8.3/8.4/8.5 against Laravel 11/12/13 (each with its matching Testbench major), `prefer-lowest` and `prefer-stable`. PHPStan, Pint, Pest, and pest-plugin-laravel constraints widened to track the latest majors (Pest 4, pest-plugin-laravel 4, Larastan 3-only).

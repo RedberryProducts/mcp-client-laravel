@@ -223,6 +223,10 @@ composer test
 
 Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
 
+## Upgrading
+
+Upgrading from `1.x` to `2.x`? See [UPGRADE.md](UPGRADE.md) for breaking changes and a step-by-step migration guide.
+
 ## Contributing
 
 Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
