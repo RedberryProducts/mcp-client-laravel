@@ -23,7 +23,7 @@ All file paths below are relative to the package root.
 
 ---
 
-## P1 — Defensive error-message handling in `SseStreamParser`
+## ~~P1 — Defensive error-message handling in `SseStreamParser`~~ ✅ Done
 
 **Problem.** `SseStreamParser::dispatch()` (`src/Core/Http/SseStreamParser.php`, lines 127–130) builds the exception message as `"JSON-RPC error: {$decoded['error']['message']}"`. If a server sends `{"error":{"code":-32601}}` without a `message` key, this emits a PHP warning and produces an empty-string error. STDIO already does this defensively in `StdioTransporter` (lines 239–240).
 
@@ -33,7 +33,7 @@ All file paths below are relative to the package root.
 
 ---
 
-## P2 — SSE read-timeout / wedge protection
+## ~~P2 — SSE read-timeout / wedge protection~~ ✅ Done
 
 **Problem.** `HttpTransporter` passes `timeout` to Guzzle, but that bounds connection/request setup, not body reads on a streamed response. A misbehaving server that keeps the connection open while sending nothing will park a queue worker indefinitely on `$stream->read()` in `SseStreamParser::parse()` (`src/Core/Http/SseStreamParser.php`, lines 41–42).
 
@@ -48,7 +48,7 @@ All file paths below are relative to the package root.
 
 ---
 
-## P3 — Session-loss recovery
+## ~~P3 — Session-loss recovery~~ ✅ Done
 
 **Problem.** `HttpTransporter::$initialized` and `$sessionId` are sticky on the instance. If the server tears down the session (per the MCP spec, this surfaces as HTTP 404 with a known error code, or a JSON-RPC error indicating "session not found"), we'll keep posting the stale `mcp-session-id` until the worker restarts. Realistic for queue workers and long-running daemons.
 

@@ -11,6 +11,7 @@ All notable changes to `mcp-client-laravel` will be documented in this file.
 - Optional `?callable $onEvent` parameter on `MCPClient::callTool()` and `MCPClient::readResource()` (and on the underlying `Transporter::request()` interface) for observing intermediate streamed events.
 - `HttpTransporter` constructor now accepts an optional Guzzle `ClientInterface` for dependency injection.
 - `read_timeout` config key on the HTTP transporter (default `60` seconds) — the maximum gap between SSE chunks before the parser aborts a wedged stream. The clock resets on every received chunk so long-running operations that stream progress events stay alive.
+- HTTP transporter now recovers from session loss: when a request to an active session returns HTTP 404 (the MCP 2025-03-26 signal for an expired/unknown session), the transporter clears the session, re-runs the `initialize` handshake, and retries the original request once. Configurable via the new `max_session_retries` key (default `1`, set `0` to disable).
 
 ### Changed
 
