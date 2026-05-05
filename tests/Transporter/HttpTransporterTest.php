@@ -280,6 +280,34 @@ describe('HttpTransporter', function () {
         $transporter->request('errorAction', []);
     });
 
+    test('JSON-RPC error without message field falls back to "Unknown JSON-RPC error" without warnings', function () {
+        [$transporter, $mockClient] = setUpInitializedTransporter();
+
+        // Per JSON-RPC 2.0, `message` is SHOULD-not-MUST. Spec-compliant servers may omit it;
+        // the previous code interpolated it directly and emitted a PHP warning + empty message.
+        $error = ['jsonrpc' => '2.0', 'id' => 1, 'error' => ['code' => -32000]];
+        $response = new Response(200, [], json_encode($error));
+        $mockClient->shouldReceive('request')
+            ->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'errMissingMessage'))
+            ->andReturn($response);
+
+        // Promote PHP warnings to throwables so any regression of the null-coalesce fails this test.
+        set_error_handler(function ($severity, $message) {
+            throw new ErrorException($message, 0, $severity);
+        }, E_WARNING);
+
+        try {
+            $transporter->request('errMissingMessage', []);
+            expect()->fail('Expected TransporterRequestException for JSON-RPC error.');
+        } catch (TransporterRequestException $e) {
+            expect($e->getMessage())->toContain('Unknown JSON-RPC error')
+                ->and($e->getCode())->toBe(-32000);
+        } finally {
+            restore_error_handler();
+        }
+    });
+
     test('Guzzle exception is wrapped in TransporterRequestException', function () {
         [$transporter, $mockClient] = setUpInitializedTransporter();
 
