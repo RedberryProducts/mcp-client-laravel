@@ -173,4 +173,16 @@ SSE;
 
         expect($result)->toEqual(['ok' => true]);
     });
+
+    test('null read timeout disables timeout enforcement', function () {
+        // Stream returns several empty reads, then EOFs. With timeout=null
+        // the parser must run to EOF and surface the "ended without result"
+        // error rather than the timeout error.
+        $stream = Mockery::mock(StreamInterface::class);
+        $stream->shouldReceive('eof')->andReturn(false, false, false, true);
+        $stream->shouldReceive('read')->andReturn('', '', '');
+
+        expect(fn () => SseStreamParser::parse($stream, null, null))
+            ->toThrow(TransporterRequestException::class, 'SSE stream ended without a JSON-RPC result.');
+    });
 });

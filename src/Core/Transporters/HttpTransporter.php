@@ -119,9 +119,7 @@ class HttpTransporter implements Transporter
         $contentType = strtolower(trim(explode(';', $response->getHeaderLine('Content-Type'))[0]));
 
         if ($contentType === 'text/event-stream') {
-            $readTimeout = $this->config['read_timeout'] ?? 60;
-
-            return SseStreamParser::parse($response->getBody(), $onEvent, (float) $readTimeout);
+            return SseStreamParser::parse($response->getBody(), $onEvent, $this->resolveReadTimeout());
         }
 
         $body = (string) $response->getBody();
@@ -161,6 +159,22 @@ class HttpTransporter implements Transporter
         }
 
         return $headers;
+    }
+
+    /**
+     * Resolve the SSE inter-chunk read timeout from config. A missing key
+     * uses the default; an explicit `null` disables the timeout entirely
+     * (the parser supports that for callers willing to wait indefinitely).
+     */
+    private function resolveReadTimeout(): ?float
+    {
+        if (! \array_key_exists('read_timeout', $this->config)) {
+            return 60.0;
+        }
+
+        $configured = $this->config['read_timeout'];
+
+        return $configured === null ? null : (float) $configured;
     }
 
     private function generateId(): string|int
