@@ -6,6 +6,7 @@ namespace Redberry\MCPClient\Core\Transporters;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\ClientInterface as GuzzleClient;
+use GuzzleHttp\Exception\BadResponseException;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Psr\Http\Message\ResponseInterface;
@@ -15,6 +16,8 @@ use Redberry\MCPClient\Core\Mcp;
 
 class HttpTransporter implements Transporter
 {
+    private const DEFAULT_MAX_SESSION_RETRIES = 1;
+
     private GuzzleClient $client;
 
     private ?string $sessionId = null;
@@ -83,31 +86,77 @@ class HttpTransporter implements Transporter
     }
 
     /**
+     * Both `BadResponseException` and other `GuzzleException`s raised by the
+     * underlying client are caught and wrapped in `TransporterRequestException`
+     * before leaving this method. `JsonException` may still escape from the
+     * SSE parsing path when an individual event payload fails to decode.
+     *
      * @throws TransporterRequestException
-     * @throws GuzzleException
      * @throws JsonException
      */
     public function request(string $action, array $params = [], ?callable $onEvent = null): array
     {
         $this->initializeSession();
-        $payload = $this->preparePayload($action, $params);
 
-        try {
-            $response = $this->client->request('POST', '', [
-                'json' => $payload,
-                'timeout' => $this->config['timeout'] ?? 30,
-                'stream' => true,
-                'headers' => $this->buildRequestHeaders(),
-            ]);
+        $maxRetries = (int) ($this->config['max_session_retries'] ?? self::DEFAULT_MAX_SESSION_RETRIES);
+        $attempt = 0;
 
-            return $this->parseResponse($response, $onEvent);
-        } catch (GuzzleException $e) {
-            throw new TransporterRequestException(
-                "HTTP error for {$action}: {$e->getMessage()}",
-                (int) $e->getCode(),
-                $e
-            );
+        while (true) {
+            try {
+                $response = $this->client->request('POST', '', [
+                    'json' => $this->preparePayload($action, $params),
+                    'timeout' => $this->config['timeout'] ?? 30,
+                    'stream' => true,
+                    'headers' => $this->buildRequestHeaders(),
+                    // Force Guzzle to throw on 4xx/5xx even if an injected client
+                    // has `http_errors` disabled — otherwise a 404 would slip past
+                    // session-loss detection and surface as a parse error.
+                    'http_errors' => true,
+                ]);
+
+                return $this->parseResponse($response, $onEvent);
+            } catch (BadResponseException $e) {
+                if ($this->isSessionLoss($e) && $attempt < $maxRetries) {
+                    $attempt++;
+                    $this->reinitializeSession();
+
+                    continue;
+                }
+
+                throw new TransporterRequestException(
+                    "HTTP error for {$action}: {$e->getMessage()}",
+                    (int) $e->getCode(),
+                    $e
+                );
+            } catch (GuzzleException $e) {
+                throw new TransporterRequestException(
+                    "HTTP error for {$action}: {$e->getMessage()}",
+                    (int) $e->getCode(),
+                    $e
+                );
+            }
         }
+    }
+
+    /**
+     * Per the MCP 2025-03-26 Streamable HTTP spec, a server signals an
+     * expired or unknown session by returning HTTP 404 to a request that
+     * carries an `mcp-session-id` header. There is no standard JSON-RPC
+     * error code for session loss, so we detect it at the HTTP layer only.
+     */
+    private function isSessionLoss(BadResponseException $e): bool
+    {
+        // BadResponseException::getResponse() narrows the parent's nullable return
+        // to a non-null ResponseInterface, so it is always safe to dereference here.
+        return $this->sessionId !== null
+            && $e->getResponse()->getStatusCode() === 404;
+    }
+
+    private function reinitializeSession(): void
+    {
+        $this->sessionId = null;
+        $this->initialized = false;
+        $this->initializeSession();
     }
 
     /**

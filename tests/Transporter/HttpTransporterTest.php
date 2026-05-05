@@ -1,7 +1,9 @@
 <?php
 
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\TransferException;
+use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use GuzzleHttp\Psr7\Utils;
 use Psr\Http\Message\StreamInterface;
@@ -583,5 +585,158 @@ SSE;
             ->andReturn($reqResp);
 
         expect($transporter->request('second'))->toEqual(['ok' => true]);
+    });
+
+    test('HTTP 404 with active session re-initializes and retries the request once', function () {
+        $mockClient = Mockery::mock(Client::class);
+        $transporter = new HttpTransporter([], $mockClient);
+
+        $initResp1 = new Response(200, ['mcp-session-id' => 'sid-1', 'Content-Type' => 'application/json'], json_encode(['result' => []]));
+        $notifyResp1 = new Response(202, [], '');
+        $firstReqResp = new Response(200, ['Content-Type' => 'application/json'], json_encode(['result' => ['n' => 1]]));
+
+        $sessionLost = new ClientException(
+            'Session not found',
+            new Request('POST', ''),
+            new Response(404, [], '')
+        );
+
+        $initResp2 = new Response(200, ['mcp-session-id' => 'sid-2', 'Content-Type' => 'application/json'], json_encode(['result' => []]));
+        $notifyResp2 = new Response(202, [], '');
+        $retryResp = new Response(200, ['Content-Type' => 'application/json'], json_encode(['result' => ['n' => 2]]));
+
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'initialize'))
+            ->andReturn($initResp1);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'notifications/initialized'))
+            ->andReturn($notifyResp1);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'first'
+                && ($opts['headers']['mcp-session-id'] ?? null) === 'sid-1'))
+            ->andReturn($firstReqResp);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'second'
+                && ($opts['headers']['mcp-session-id'] ?? null) === 'sid-1'))
+            ->andThrow($sessionLost);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'initialize'))
+            ->andReturn($initResp2);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'notifications/initialized'))
+            ->andReturn($notifyResp2);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'second'
+                && ($opts['headers']['mcp-session-id'] ?? null) === 'sid-2'))
+            ->andReturn($retryResp);
+
+        expect($transporter->request('first'))->toEqual(['n' => 1]);
+        expect($transporter->request('second'))->toEqual(['n' => 2]);
+    });
+
+    test('HTTP 404 followed by another 404 on retry surfaces as TransporterRequestException', function () {
+        $mockClient = Mockery::mock(Client::class);
+        $transporter = new HttpTransporter([], $mockClient);
+
+        $initResp1 = new Response(200, ['mcp-session-id' => 'sid-1', 'Content-Type' => 'application/json'], json_encode(['result' => []]));
+        $notifyResp1 = new Response(202, [], '');
+        $sessionLost1 = new ClientException(
+            'Session not found',
+            new Request('POST', ''),
+            new Response(404, [], '')
+        );
+        $initResp2 = new Response(200, ['mcp-session-id' => 'sid-2', 'Content-Type' => 'application/json'], json_encode(['result' => []]));
+        $notifyResp2 = new Response(202, [], '');
+        $sessionLost2 = new ClientException(
+            'Session not found again',
+            new Request('POST', ''),
+            new Response(404, [], '')
+        );
+
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'initialize'))
+            ->andReturn($initResp1);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'notifications/initialized'))
+            ->andReturn($notifyResp1);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'doomed'))
+            ->andThrow($sessionLost1);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'initialize'))
+            ->andReturn($initResp2);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'notifications/initialized'))
+            ->andReturn($notifyResp2);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'doomed'))
+            ->andThrow($sessionLost2);
+
+        $this->expectException(TransporterRequestException::class);
+        $this->expectExceptionMessage('HTTP error for doomed: Session not found again');
+
+        $transporter->request('doomed');
+    });
+
+    test('max_session_retries=0 surfaces a 404 immediately without re-initializing', function () {
+        $mockClient = Mockery::mock(Client::class);
+        $transporter = new HttpTransporter(['max_session_retries' => 0], $mockClient);
+
+        $initResp = new Response(200, ['mcp-session-id' => 'sid-1', 'Content-Type' => 'application/json'], json_encode(['result' => []]));
+        $notifyResp = new Response(202, [], '');
+        $sessionLost = new ClientException(
+            'Session not found',
+            new Request('POST', ''),
+            new Response(404, [], '')
+        );
+
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'initialize'))
+            ->andReturn($initResp);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'notifications/initialized'))
+            ->andReturn($notifyResp);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'noRetry'))
+            ->andThrow($sessionLost);
+        // No further initialize/request calls are expected — the assertion is implicit
+        // in Mockery's strict expectations, which will fail if the transporter retries.
+
+        $this->expectException(TransporterRequestException::class);
+        $this->expectExceptionMessage('HTTP error for noRetry: Session not found');
+
+        $transporter->request('noRetry');
+    });
+
+    test('404 from a sessionless server is not treated as session loss', function () {
+        // Some servers may complete `initialize` without returning an `mcp-session-id` header
+        // (sessionless mode). In that case a follow-up 404 is a real error, not session expiry,
+        // and must not trigger a retry.
+        $mockClient = Mockery::mock(Client::class);
+        $transporter = new HttpTransporter([], $mockClient);
+
+        $initRespNoSession = new Response(200, ['Content-Type' => 'application/json'], json_encode(['result' => []]));
+        $notifyResp = new Response(202, [], '');
+        $notFound = new ClientException(
+            'Not found',
+            new Request('POST', ''),
+            new Response(404, [], '')
+        );
+
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'initialize'))
+            ->andReturn($initRespNoSession);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'notifications/initialized'))
+            ->andReturn($notifyResp);
+        $mockClient->shouldReceive('request')->once()
+            ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'whatever'))
+            ->andThrow($notFound);
+        // No retry — the strict Mockery expectations will fail if a re-initialize is attempted.
+
+        $this->expectException(TransporterRequestException::class);
+        $this->expectExceptionMessage('HTTP error for whatever: Not found');
+
+        $transporter->request('whatever');
     });
 });
