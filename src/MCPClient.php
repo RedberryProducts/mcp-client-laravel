@@ -14,14 +14,25 @@ class MCPClient implements IMCPClient
 
     private ?Transporter $transporter = null;
 
-    /** @var array<string, Transporter> */
-    private array $transporterCache = [];
+    /**
+     * Shared cache of transporters keyed by server name.
+     *
+     * Held in an ArrayObject so that `clone $this` (shallow copy) leaves every
+     * clone pointing at the *same* cache instance. Caching `connect('a')`
+     * from a clone is therefore visible to the root and all sibling clones.
+     *
+     * @var \ArrayObject<string, Transporter>
+     */
+    private \ArrayObject $transporterCache;
 
     public function __construct(
         array $config,
         private readonly TransporterFactory $factory = new TransporterFactory
     ) {
         $this->config = $config;
+        /** @var \ArrayObject<string, Transporter> $cache */
+        $cache = new \ArrayObject;
+        $this->transporterCache = $cache;
     }
 
     /**
@@ -42,7 +53,9 @@ class MCPClient implements IMCPClient
             );
         }
 
-        $this->transporterCache[$serverName] ??= $this->factory->make($this->config[$serverName]);
+        if (! $this->transporterCache->offsetExists($serverName)) {
+            $this->transporterCache[$serverName] = $this->factory->make($this->config[$serverName]);
+        }
 
         $clone = clone $this;
         $clone->transporter = $this->transporterCache[$serverName];

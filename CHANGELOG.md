@@ -31,7 +31,7 @@ All notable changes to `mcp-client-laravel` will be documented in this file.
 
 ### Fixed
 
-- `MCPClient::callTool()` and `MCPClient::readResource()` now throw the documented `RuntimeException` ("`Call connect($serverName) before callTool()/readResource().`") when called on an unconnected client. Previously they accessed an uninitialized typed property and surfaced a `TypeError` ("Typed property … must not be accessed before initialization") instead.
+- `MCPClient::callTool()` and `MCPClient::readResource()` now throw the documented `RuntimeException` (per-method messages: `"Call connect($serverName) before callTool()."` and `"Call connect($serverName) before readResource()."`) when called on an unconnected client. Previously they accessed an uninitialized typed property and surfaced a `TypeError` ("Typed property … must not be accessed before initialization") instead.
 - Spec-correct `initialize` handshake on the HTTP transporter — payload now includes `protocolVersion`, `capabilities`, and `clientInfo`, and the required `notifications/initialized` notification is sent before the first user request. Strict-spec MCP servers (the official TS reference, Anthropic's servers) previously rejected the bare initialize.
 - STDIO transporter sent the post-initialize notification with method `initialized`; renamed to spec-correct `notifications/initialized`.
 - `SseStreamParser` no longer raises a PHP warning when a server returns a JSON-RPC error without a `message` field; falls back to `"Unknown JSON-RPC error"` while preserving the error `code`.

@@ -271,6 +271,32 @@ describe('MCPClient', function () {
             ->and($b->tools()->all())->toBe([['name' => 'b-tool']]);
     });
 
+    test('connect from a clone shares the cache with the root', function () {
+        $mockFactory = Mockery::mock(TransporterFactory::class);
+        $transporterA = Mockery::mock(Transporter::class);
+        $transporterB = Mockery::mock(Transporter::class);
+
+        // Each server transporter must be created exactly once across the whole
+        // chain — even though one of the connect() calls happens on a clone.
+        $mockFactory->shouldReceive('make')
+            ->once()
+            ->with(config('mcp-client.servers.using_enum'))
+            ->andReturn($transporterA);
+
+        $mockFactory->shouldReceive('make')
+            ->once()
+            ->with(config('mcp-client.servers.second_http'))
+            ->andReturn($transporterB);
+
+        $root = new MCPClient(config('mcp-client.servers'), $mockFactory);
+
+        $a = $root->connect('using_enum');     // caches 'using_enum'
+        $b = $a->connect('second_http');       // chained on the clone — must cache 'second_http' on the shared cache
+        $bAgain = $root->connect('second_http'); // root must hit the cache, not re-make
+
+        expect($b)->not->toBe($bAgain);
+    });
+
     test('connect caches the transporter per server (handshake paid once)', function () {
         $mockFactory = Mockery::mock(TransporterFactory::class);
         $mockTransporter = Mockery::mock(Transporter::class);
