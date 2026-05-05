@@ -47,7 +47,7 @@ class MCPClient implements IMCPClient
         $tools = $this->transporter->request('tools/list');
         $tools = $tools['tools'] ?? $tools;
 
-        return new Collection($tools);
+        return new Collection($tools, 'name');
     }
 
     public function callTool(string $toolName, mixed $params = [], ?callable $onEvent = null): mixed
@@ -81,7 +81,7 @@ class MCPClient implements IMCPClient
         $resources = $this->transporter->request('resources/list');
         $resources = $resources['resources'] ?? $resources;
 
-        return new Collection($resources);
+        return new Collection($resources, 'uri');
     }
 
     private function getTransporter(array $config): Transporter

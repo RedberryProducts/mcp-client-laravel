@@ -148,6 +148,8 @@ $mappedTools = $client->tools()->map(function ($tool) {
 });
 ```
 
+> `only()` and `except()` filter on `name` for tools and on `uri` for resources — collections returned by `tools()` and `resources()` know which key to match on.
+
 ### Call tools
 
 The `callTool` method is used to execute specific tool. Here is the signature:

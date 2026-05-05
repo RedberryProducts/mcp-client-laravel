@@ -142,6 +142,43 @@ describe('MCPClient', function () {
         expect($client->readResource('file:///x', $callback))->toEqual(['content' => 'hi']);
     });
 
+    test('resources()->only() filters by uri (not name)', function () {
+        $mockTransporter = Mockery::mock(Transporter::class);
+        $mockFactory = Mockery::mock(TransporterFactory::class);
+        $mockTransporter->shouldReceive('request')
+            ->once()
+            ->with('resources/list')
+            ->andReturn(['resources' => [
+                ['uri' => 'file:///a', 'name' => 'first'],
+                ['uri' => 'file:///b', 'name' => 'second'],
+            ]]);
+
+        $mockFactory->shouldReceive('make')->andReturn($mockTransporter);
+
+        $client = new MCPClient(config('mcp-client.servers'), $mockFactory);
+        $client->connect('using_enum');
+
+        expect($client->resources()->only('file:///a')->all())->toBe([
+            ['uri' => 'file:///a', 'name' => 'first'],
+        ]);
+    });
+
+    test('tools()->only() filters by name (regression)', function () {
+        $mockTransporter = Mockery::mock(Transporter::class);
+        $mockFactory = Mockery::mock(TransporterFactory::class);
+        $mockTransporter->shouldReceive('request')
+            ->once()
+            ->with('tools/list')
+            ->andReturn(['tools' => [['name' => 'toolA'], ['name' => 'toolB']]]);
+
+        $mockFactory->shouldReceive('make')->andReturn($mockTransporter);
+
+        $client = new MCPClient(config('mcp-client.servers'), $mockFactory);
+        $client->connect('using_enum');
+
+        expect($client->tools()->only('toolA')->all())->toBe([['name' => 'toolA']]);
+    });
+
     test('tools throws exception when not connected', function () {
         $client = new MCPClient(config('mcp-client.servers'));
 

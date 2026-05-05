@@ -189,3 +189,54 @@ test('constructor handles null values in array', function () {
     $collection = new Collection([null, ['name' => 'alpha', 'value' => 1]]);
     expect($collection->all())->toBe([null, ['name' => 'alpha', 'value' => 1]]);
 });
+
+$resourceItems = [
+    ['uri' => 'file:///a', 'name' => 'A'],
+    ['uri' => 'file:///b', 'name' => 'B'],
+    ['uri' => 'file:///c', 'name' => 'C'],
+];
+
+test('only filters by the configured matchKey (uri) instead of name', function () use ($resourceItems) {
+    $collection = new Collection($resourceItems, 'uri');
+    expect($collection->only('file:///a')->all())->toBe([
+        ['uri' => 'file:///a', 'name' => 'A'],
+    ]);
+});
+
+test('except filters by the configured matchKey (uri) instead of name', function () use ($resourceItems) {
+    $collection = new Collection($resourceItems, 'uri');
+    expect($collection->except('file:///a')->all())->toBe([
+        ['uri' => 'file:///b', 'name' => 'B'],
+        ['uri' => 'file:///c', 'name' => 'C'],
+    ]);
+});
+
+test('only with the uri matchKey ignores name field', function () use ($resourceItems) {
+    // Filtering by 'A' (the value of the `name` field) must NOT match when the matchKey is 'uri'.
+    $collection = new Collection($resourceItems, 'uri');
+    expect($collection->only('A')->all())->toBe([]);
+});
+
+test('matchKey propagates through only/except/map chains', function () use ($resourceItems) {
+    $collection = new Collection($resourceItems, 'uri');
+
+    // The intermediate map returns items that still carry `uri`, so a downstream `only`
+    // by uri must still work — the matchKey survives the chain.
+    $result = $collection
+        ->only('file:///a', 'file:///b')
+        ->map(fn ($item) => ['uri' => $item['uri'], 'name' => strtolower($item['name'])])
+        ->except('file:///a')
+        ->all();
+
+    expect($result)->toBe([
+        ['uri' => 'file:///b', 'name' => 'b'],
+    ]);
+});
+
+test('matchKey defaults to "name" so existing tools-shaped collections keep working', function () {
+    $collection = new Collection([
+        ['name' => 'toolA'],
+        ['name' => 'toolB'],
+    ]);
+    expect($collection->only('toolA')->all())->toBe([['name' => 'toolA']]);
+});
