@@ -49,28 +49,18 @@ class SseStreamParser
         $buffer = '';
         $current = self::emptyEvent();
         $final = null;
-        $lastChunkAt = $readTimeout !== null ? microtime(true) : 0.0;
+        $lastChunkAt = microtime(true);
 
         while (! $stream->eof()) {
             $chunk = $stream->read(self::READ_BYTES);
-            if ($chunk === '') {
-                if ($readTimeout !== null) {
-                    if ((microtime(true) - $lastChunkAt) > $readTimeout) {
-                        throw new TransporterRequestException(
-                            sprintf('SSE read timed out after %ss without receiving data.', $readTimeout)
-                        );
-                    }
 
-                    usleep(self::EMPTY_READ_SLEEP_US);
-                }
+            if ($chunk === '') {
+                self::awaitNextChunk($lastChunkAt, $readTimeout);
 
                 continue;
             }
 
-            if ($readTimeout !== null) {
-                $lastChunkAt = microtime(true);
-            }
-
+            $lastChunkAt = microtime(true);
             $buffer .= $chunk;
             self::drainLines($buffer, $current, $final, $onEvent);
         }
@@ -86,6 +76,29 @@ class SseStreamParser
         }
 
         return $final;
+    }
+
+    /**
+     * Called after an empty `read()`. Throws if the gap since the last chunk
+     * has exceeded the configured timeout, otherwise backs off briefly so the
+     * loop doesn't spin a CPU on non-blocking streams. No-op when no timeout
+     * is configured.
+     *
+     * @throws TransporterRequestException
+     */
+    private static function awaitNextChunk(float $lastChunkAt, ?float $readTimeout): void
+    {
+        if ($readTimeout === null) {
+            return;
+        }
+
+        if ((microtime(true) - $lastChunkAt) > $readTimeout) {
+            throw new TransporterRequestException(
+                sprintf('SSE read timed out after %ss without receiving data.', $readTimeout)
+            );
+        }
+
+        usleep(self::EMPTY_READ_SLEEP_US);
     }
 
     /**
