@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Redberry\MCPClient;
 
 use Redberry\MCPClient\Contracts\MCPClient as IMCPClient;
@@ -10,39 +12,63 @@ class MCPClient implements IMCPClient
 {
     private array $config;
 
-    private array $serverConfig;
-
-    private Transporter $transporter;
+    private ?Transporter $transporter = null;
 
     /**
-     * Connects to a specified MCP server.
+     * Shared cache of transporters keyed by server name.
+     *
+     * Held in an ArrayObject so that `clone $this` (shallow copy) leaves every
+     * clone pointing at the *same* cache instance. Caching `connect('a')`
+     * from a clone is therefore visible to the root and all sibling clones.
+     *
+     * @var \ArrayObject<string, Transporter>
      */
+    private \ArrayObject $transporterCache;
+
     public function __construct(
         array $config,
         private readonly TransporterFactory $factory = new TransporterFactory
     ) {
         $this->config = $config;
+        /** @var \ArrayObject<string, Transporter> $cache */
+        $cache = new \ArrayObject;
+        $this->transporterCache = $cache;
     }
 
+    /**
+     * Connect to a configured MCP server.
+     *
+     * Returns a clone configured for the requested server; the root client is
+     * not mutated. Repeated `connect($name)` calls reuse a cached Transporter
+     * keyed on the server name, so the `initialize` handshake is paid once per
+     * server per root instance.
+     */
     public function connect(string $serverName): IMCPClient
     {
-        $this->serverConfig = $this->config[$serverName] ?? null;
+        if (! array_key_exists($serverName, $this->config)) {
+            $available = empty($this->config) ? '(none)' : implode(', ', array_keys($this->config));
 
-        $this->ensureConfigurationValidity();
+            throw new \RuntimeException(
+                "Unknown MCP server '{$serverName}'. Configured servers: {$available}."
+            );
+        }
 
-        $this->transporter = $this->getTransporter($this->serverConfig);
+        if (! $this->transporterCache->offsetExists($serverName)) {
+            $this->transporterCache[$serverName] = $this->factory->make($this->config[$serverName]);
+        }
 
-        return $this;
+        $clone = clone $this;
+        $clone->transporter = $this->transporterCache[$serverName];
+
+        return $clone;
     }
 
     /**
      * Fetches tools from the connected MCP server.
-     *
-     * @throws \Exception
      */
     public function tools(): Collection
     {
-        $this->ensureConfigurationValidity();
+        $this->ensureConnected('tools');
 
         $tools = $this->transporter->request('tools/list');
         $tools = $tools['tools'] ?? $tools;
@@ -50,8 +76,10 @@ class MCPClient implements IMCPClient
         return new Collection($tools, 'name');
     }
 
-    public function callTool(string $toolName, mixed $params = [], ?callable $onEvent = null): mixed
+    public function callTool(string $toolName, mixed $params = [], ?callable $onEvent = null): array
     {
+        $this->ensureConnected('callTool');
+
         $requestParams = [
             'name' => $toolName,
             'arguments' => (object) $params,
@@ -60,8 +88,10 @@ class MCPClient implements IMCPClient
         return $this->transporter->request('tools/call', $requestParams, $onEvent);
     }
 
-    public function readResource(string $uri, ?callable $onEvent = null): mixed
+    public function readResource(string $uri, ?callable $onEvent = null): array
     {
+        $this->ensureConnected('readResource');
+
         $requestParams = [
             'uri' => $uri,
         ];
@@ -71,12 +101,10 @@ class MCPClient implements IMCPClient
 
     /**
      * Fetches resources from the connected MCP server.
-     *
-     * @throws \Exception
      */
     public function resources(): Collection
     {
-        $this->ensureConfigurationValidity();
+        $this->ensureConnected('resources');
 
         $resources = $this->transporter->request('resources/list');
         $resources = $resources['resources'] ?? $resources;
@@ -84,15 +112,10 @@ class MCPClient implements IMCPClient
         return new Collection($resources, 'uri');
     }
 
-    private function getTransporter(array $config): Transporter
+    private function ensureConnected(string $method): void
     {
-        return $this->factory->make($config);
-    }
-
-    private function ensureConfigurationValidity(): void
-    {
-        if (empty($this->serverConfig)) {
-            throw new \RuntimeException('Server configuration is not set. Please connect to a server first.');
+        if ($this->transporter === null) {
+            throw new \RuntimeException("Call connect(\$serverName) before {$method}().");
         }
     }
 }
