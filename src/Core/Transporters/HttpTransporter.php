@@ -86,8 +86,12 @@ class HttpTransporter implements Transporter
     }
 
     /**
+     * Both `BadResponseException` and other `GuzzleException`s raised by the
+     * underlying client are caught and wrapped in `TransporterRequestException`
+     * before leaving this method. `JsonException` may still escape from the
+     * SSE parsing path when an individual event payload fails to decode.
+     *
      * @throws TransporterRequestException
-     * @throws GuzzleException
      * @throws JsonException
      */
     public function request(string $action, array $params = [], ?callable $onEvent = null): array
@@ -138,6 +142,8 @@ class HttpTransporter implements Transporter
      */
     private function isSessionLoss(BadResponseException $e): bool
     {
+        // BadResponseException::getResponse() narrows the parent's nullable return
+        // to a non-null ResponseInterface, so it is always safe to dereference here.
         return $this->sessionId !== null
             && $e->getResponse()->getStatusCode() === 404;
     }
