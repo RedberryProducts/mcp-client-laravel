@@ -1,6 +1,6 @@
 # Roadmap
 
-Follow-up work tracked after [PR #33](https://github.com/RedberryProducts/mcp-client-laravel/pull/33) (Streamable HTTP transport). All P0–P7 items have shipped.
+Follow-up work tracked after [PR #33](https://github.com/RedberryProducts/mcp-client-laravel/pull/33) (Streamable HTTP transport). All P0–P10 items have shipped, cut as `v2.0.0`.
 
 ## Completed
 
@@ -12,6 +12,9 @@ Follow-up work tracked after [PR #33](https://github.com/RedberryProducts/mcp-cl
 - ~~**P5** — Cleanup: switch HTTP request IDs to an incrementing counter~~ — [PR #43](https://github.com/RedberryProducts/mcp-client-laravel/pull/43)
 - ~~**P6** — Document `$onEvent` is a no-op on STDIO~~ — [PR #43](https://github.com/RedberryProducts/mcp-client-laravel/pull/43)
 - ~~**P7** — `MCPClient` surface: singleton DI, contract alias, immutable `connect`, missing guards~~ — [#48](https://github.com/RedberryProducts/mcp-client-laravel/issues/48)
+- ~~**P8** — STDIO robustness: split `request_timeout` / `process_timeout`, parent-env inheritance, diagnosable startup failures~~ — [PR #51](https://github.com/RedberryProducts/mcp-client-laravel/pull/51)
+- ~~**P9** — Defensive `error.message` handling on the HTTP JSON path (mirror of P1 for `parseResponse()`)~~ — [PR #49](https://github.com/RedberryProducts/mcp-client-laravel/pull/49)
+- ~~**P10** — `Collection::only()` / `except()` filter on a configurable key (`name` for tools, `uri` for resources)~~ — [PR #50](https://github.com/RedberryProducts/mcp-client-laravel/pull/50)
 
 The original problem statements, tasks, and acceptance criteria for each item are preserved in this file's git history.
 
