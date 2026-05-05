@@ -24,6 +24,13 @@ class SseStreamParser
     private const DONE_SENTINEL = '[DONE]';
 
     /**
+     * Microseconds to sleep between consecutive empty `read()`s when a read
+     * timeout is configured. Prevents pegging CPU when the underlying stream
+     * is non-blocking and returns '' while waiting for bytes to arrive.
+     */
+    private const EMPTY_READ_SLEEP_US = 1000;
+
+    /**
      * Read the stream to completion and return the final JSON-RPC `result`.
      *
      * @param  callable(array $event):void|null  $onEvent  Invoked for every decoded event message,
@@ -47,10 +54,14 @@ class SseStreamParser
         while (! $stream->eof()) {
             $chunk = $stream->read(self::READ_BYTES);
             if ($chunk === '') {
-                if ($readTimeout !== null && (microtime(true) - $lastChunkAt) > $readTimeout) {
-                    throw new TransporterRequestException(
-                        sprintf('SSE read timed out after %ss without receiving data.', $readTimeout)
-                    );
+                if ($readTimeout !== null) {
+                    if ((microtime(true) - $lastChunkAt) > $readTimeout) {
+                        throw new TransporterRequestException(
+                            sprintf('SSE read timed out after %ss without receiving data.', $readTimeout)
+                        );
+                    }
+
+                    usleep(self::EMPTY_READ_SLEEP_US);
                 }
 
                 continue;

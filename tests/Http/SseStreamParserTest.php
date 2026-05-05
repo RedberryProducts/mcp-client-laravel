@@ -3,9 +3,13 @@
 declare(strict_types=1);
 
 use GuzzleHttp\Psr7\Utils;
+use Psr\Http\Message\StreamInterface;
 use Redberry\MCPClient\Core\Exceptions\TransporterRequestException;
 use Redberry\MCPClient\Core\Http\SseStreamParser;
-use Redberry\MCPClient\Tests\Http\Fixtures\WedgedStream;
+
+afterEach(function () {
+    Mockery::close();
+});
 
 describe('SseStreamParser', function () {
     test('returns the result of a single event', function () {
@@ -145,10 +149,14 @@ SSE;
     });
 
     test('throws TransporterRequestException when no chunks arrive within the read timeout', function () {
+        $stream = Mockery::mock(StreamInterface::class);
+        $stream->shouldReceive('eof')->andReturn(false);
+        $stream->shouldReceive('read')->andReturn('');
+
         $start = microtime(true);
 
         try {
-            SseStreamParser::parse(new WedgedStream, null, 0.05);
+            SseStreamParser::parse($stream, null, 0.05);
             expect()->fail('Expected a SSE read timeout to fire.');
         } catch (TransporterRequestException $e) {
             $elapsed = microtime(true) - $start;
