@@ -116,8 +116,7 @@ Reads the Guzzle `StreamInterface` in 8KB chunks, drains complete `\n`-terminate
 - Don't use `ReflectionClass` to set up transporter state in new tests — use constructor injection (HTTP transporter accepts `?GuzzleClient`)
 - Don't use `random_int` for new request id generators — use an incrementing counter
 - Don't add `dd()`, `dump()`, `ray()`, or `var_dump()` in committed code (the arch test in `tests/ArchTest.php` will fail)
-- Don't widen the changelog scope of P0 by combining it with other ROADMAP items (per ROADMAP.md:96)
-- Don't start work on resumability, `Last-Event-ID`, or a long-lived `GET /` SSE channel without checking first (out-of-scope per ROADMAP.md:98–102)
+- Don't start work on resumability, `Last-Event-ID`, or a long-lived `GET /` SSE channel without checking first (out-of-scope per [ROADMAP.md "Out of scope"](ROADMAP.md#out-of-scope))
 
 ## Definition of Done
 
