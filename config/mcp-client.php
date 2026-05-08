@@ -1,9 +1,11 @@
 <?php
 
+use Redberry\MCPClient\Enums\Transporters;
+
 return [
     'servers' => [
         'github' => [
-            'type' => \Redberry\MCPClient\Enums\Transporters::HTTP,
+            'type' => Transporters::HTTP,
             'base_url' => 'https://api.githubcopilot.com/mcp',
             'timeout' => 30,
             'token' => env('GITHUB_API_TOKEN', null),
@@ -13,7 +15,7 @@ return [
             ],
         ],
         'npx_mcp_server' => [
-            'type' => \Redberry\MCPClient\Enums\Transporters::STDIO,
+            'type' => Transporters::STDIO,
             'command' => [
                 'npx',
                 '-y',
