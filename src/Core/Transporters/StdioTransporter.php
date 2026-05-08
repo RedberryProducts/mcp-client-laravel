@@ -196,8 +196,6 @@ class StdioTransporter implements Transporter
         $err = $this->process->getErrorOutput();
         $out = $this->process->getOutput();
 
-        error_log("Failed to launch: $cmd (exit $exit). stderr: $err ; stdout: $out");
-
         throw new TransporterRequestException(
             sprintf(
                 'Process failed to start (exit code: %s). Error: %s; Output: %s. Command was: %s',
