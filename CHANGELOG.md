@@ -13,3 +13,4 @@ Backport release. Public API unchanged.
 ### Changed
 
 - `StdioTransporter::handleStartupFailure()` no longer mirrors the failure line through `error_log()` before throwing. The `TransporterRequestException` already carries the command, exit code, stderr, and stdout in its message. Removing the duplicate write keeps Pest 4's risky-output detection happy on the new test stack; user-visible behavior is unchanged.
+- Dropped `spatie/laravel-ray` from dev deps. It was never used by the package (the arch test forbids `ray()` calls) and triggered a `BindingResolutionException` during `testbench package:discover` on the new dep tree.
