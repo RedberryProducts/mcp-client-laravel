@@ -196,7 +196,11 @@ Please review [our security policy](../../security/policy) before reporting a vu
 - [Nika Jorjoliani](https://github.com/nikajorjika)
 - [All Contributors](../../contributors)
 
-Built and maintained by [Redberry](https://redberry.international/?utm_source=github&utm_medium=github_mcp_readme&utm_campaign=AI+service+campaign), a Diamond-tier Laravel partner. We also run a [5-week AI agent PoC sprint](https://redberry.international/ai-agent-development/?utm_source=github&utm_medium=github_mcp_readme&utm_campaign=AI+service+campaign) for teams exploring agentic features in Laravel.
+## About Redberry
+
+This package is built and maintained by [Redberry](https://redberry.international/?utm_source=github&utm_medium=github_mcp_readme&utm_campaign=AI+service+campaign), one of the few Official Premier Laravel Partner agencies worldwide. With 250+ Laravel projects shipped across 20+ countries, a 200-person team, and over a decade in the Laravel ecosystem, Redberry has helped startups, SMEs, and publicly traded enterprises in regulated industries build SaaS platforms, custom web applications, APIs, and more. [Learn about our Laravel development services](https://redberry.international/laravel-development/?utm_source=github&utm_medium=github_mcp_readme&utm_campaign=AI+service+campaign).
+
+We also run a [5-week AI agent PoC sprint](https://redberry.international/ai-agent-development/?utm_source=github&utm_medium=github_mcp_readme&utm_campaign=AI+service+campaign) for teams exploring agentic features in Laravel.
 
 ## License
 
