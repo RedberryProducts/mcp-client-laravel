@@ -2,7 +2,7 @@
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
-use GuzzleHttp\Exception\TransferException;
+use GuzzleHttp\Exception\ServerException;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use GuzzleHttp\Psr7\Utils;
@@ -321,7 +321,7 @@ describe('HttpTransporter', function () {
                     isset($options['timeout']) &&
                     $options['timeout'] === 30;
             }))
-            ->andThrow(new TransferException('Network failure', 502));
+            ->andThrow(new ServerException('Network failure', new Request('POST', ''), new Response(502)));
 
         $this->expectException(TransporterRequestException::class);
         $this->expectExceptionMessage('HTTP error for networkFailure: Network failure');
@@ -462,7 +462,7 @@ SSE;
 
         $mockClient->shouldReceive('request')
             ->once()
-            ->andThrow(new TransferException('init refused', 503));
+            ->andThrow(new ServerException('init refused', new Request('POST', ''), new Response(503)));
 
         $this->expectException(TransporterRequestException::class);
         $this->expectExceptionMessage('HTTP error during initialize handshake: init refused');
@@ -681,7 +681,7 @@ SSE;
             ->andReturn($initResp);
         $mockClient->shouldReceive('request')->once()
             ->with('POST', '', Mockery::on(fn ($opts) => ($opts['json']['method'] ?? null) === 'notifications/initialized'))
-            ->andThrow(new TransferException('notify refused', 503));
+            ->andThrow(new ServerException('notify refused', new Request('POST', ''), new Response(503)));
 
         expect(fn () => $transporter->request('first'))
             ->toThrow(TransporterRequestException::class, 'HTTP error sending notifications/initialized');
