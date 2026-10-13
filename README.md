@@ -132,6 +132,20 @@ $tools->map(fn ($tool) => $tool['name']);
 
 The same `Collection` wraps both lists, but `only` and `except` know which key to filter on — `name` for tools and `uri` for resources.
 
+Both lists are cached per server for the lifetime of the client, so checking the tool list before calling a tool does not cost a second round-trip. The cache is shared by every handle `connect` returns, so `MCPClient::connect('github')->tools()` is answered from it on repeat calls too:
+
+```php
+$github->tools();              // fetched from the server
+$github->tools();              // served from the cache
+$github->tools(fresh: true);   // fetched again, and the cache refreshed
+
+$github->clearCache();         // drop cached lists for every server
+$github->disableCache();       // every call on this handle hits the server
+$github->enableCache();
+```
+
+`callTool` and `readResource` are never cached. Calling `disableCache()` on the root client (or the facade) also disables caching on every handle `connect` returns afterwards.
+
 ## Calling a Tool
 
 Pass the tool name and an associative array of arguments. The method returns the decoded JSON-RPC `result` array:
