@@ -2,6 +2,12 @@
 
 All notable changes to `mcp-client-laravel` will be documented in this file.
 
+## Unreleased
+
+### Added
+
+- `tools()` and `resources()` results are now cached per server, shared across every handle returned by `connect()`, so repeat calls no longer re-query the server. Pass `fresh: true` (`tools(fresh: true)`, `resources(fresh: true)`) to bypass and refresh the cache; use `clearCache()`, `disableCache()`, and `enableCache()` to manage it. `callTool()` and `readResource()` are not cached. **Note for custom implementations of `Contracts\MCPClient`:** the interface gains the optional `$fresh` parameter and the three cache methods.
+
 ## v2.0.0 - 2026-05-05
 
 This release contains breaking changes. See [UPGRADE.md](UPGRADE.md) for the `1.x → 2.x` migration guide.
